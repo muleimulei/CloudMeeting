@@ -227,6 +227,9 @@
           <property name="text">
            <string/>
           </property>
+          <property name="openExternalLinks">
+           <bool>false</bool>
+          </property>
          </widget>
         </item>
        </layout>

@@ -55,18 +55,17 @@ void Widget::cameraImageCapture(QVideoFrame frame)
     if(mainshow.isValid() && mainshow.isReadable())
     {
         QImage videoImg = QImage(mainshow.bits(), mainshow.width(), mainshow.height(), QVideoFrame::imageFormatFromPixelFormat(mainshow.pixelFormat()));
+
         QMatrix matrix;
         matrix.rotate(180.0);
 
         ui->mainshow_label->setPixmap(QPixmap::fromImage(videoImg.transformed(matrix)).scaled(ui->mainshow_label->size()));
 
-        QLabel *m = new QLabel();
-        m->setPixmap(QPixmap::fromImage(videoImg.transformed(matrix)).scaled(QSize(240, 240)));
-        ui->verticalLayout_3->addWidget(m);
-        mainshow.unmap();
+        qDebug()<< "format: " <<  videoImg.format() << "size: " << videoImg.size() << "byteSIze: "<< videoImg.sizeInBytes();
+//        QLabel *m = new QLabel();
+//        m->setPixmap(QPixmap::fromImage(videoImg.transformed(matrix)).scaled(QSize(240, 240)));
+//        ui->verticalLayout_3->addWidget(m);
     }
-
-    qDebug() << ui->scrollAreaWidgetContents->size();
 }
 
 void Widget::on_createmeetBtn_clicked()

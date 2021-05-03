@@ -19,13 +19,19 @@ SOURCES += \
     hintdialog.cpp \
     main.cpp \
     myvideosurface.cpp \
+    netheader.cpp \
+    netsend.cpp \
     screen.cpp \
+    sendimg.cpp \
     widget.cpp
 
 HEADERS += \
     hintdialog.h \
     myvideosurface.h \
+    netheader.h \
+    netsend.h \
     screen.h \
+    sendimg.h \
     widget.h
 
 FORMS += \

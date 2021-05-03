@@ -58,6 +58,7 @@ bool MyVideoSurface::present(const QVideoFrame &frame)
         QVideoFrame f(frame);
         f.map(QAbstractVideoBuffer::ReadOnly);
         emit frameAvailable(f);
+        f.unmap();
     }
 
     return true;
