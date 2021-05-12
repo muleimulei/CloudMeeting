@@ -18,18 +18,18 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     hintdialog.cpp \
     main.cpp \
+    mytcpsocket.cpp \
     myvideosurface.cpp \
     netheader.cpp \
-    netsend.cpp \
     screen.cpp \
     sendimg.cpp \
     widget.cpp
 
 HEADERS += \
     hintdialog.h \
+    mytcpsocket.h \
     myvideosurface.h \
     netheader.h \
-    netsend.h \
     screen.h \
     sendimg.h \
     widget.h

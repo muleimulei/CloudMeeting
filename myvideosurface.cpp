@@ -1,5 +1,6 @@
 #include "myvideosurface.h"
 #include <QVideoSurfaceFormat>
+#include <QDebug>
 MyVideoSurface::MyVideoSurface(QObject *parent):QAbstractVideoSurface(parent)
 {
 
@@ -58,7 +59,7 @@ bool MyVideoSurface::present(const QVideoFrame &frame)
         QVideoFrame f(frame);
         f.map(QAbstractVideoBuffer::ReadOnly);
         emit frameAvailable(f);
-        f.unmap();
+        qDebug() << "over";
     }
 
     return true;

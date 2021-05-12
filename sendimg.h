@@ -5,21 +5,25 @@
 #include <QQueue>
 #include <QMutex>
 #include <QImage>
+#include <QVideoFrame>
+#include <QWaitCondition>
 
+#define QUEUE_MAXSIZE 1500
 class SendImg : public QThread
 {
-//    Q_OBJECT
+    Q_OBJECT
 private:
     QQueue<QImage> imgqueue;
     QMutex queue_lock;
+    QWaitCondition queue_waitCond;
     void run() override;
-    bool start;
 public:
-    void startSend();
-    void stopSend();
     SendImg();
 
     void pushToQueue(QImage);
+public slots:
+    void cameraImageCapture(QVideoFrame); //捕获到视频帧
+    void clearImgQueue(); //线程结束时，清空视频帧队列
 };
 
 #endif // SENDIMG_H
