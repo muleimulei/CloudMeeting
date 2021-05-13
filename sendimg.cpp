@@ -1,7 +1,8 @@
 #include "sendimg.h"
 #include "netheader.h"
-
 #include <QDebug>
+#include <cstring>
+
 extern QUEUE_SEND queue_send;
 
 SendImg::SendImg()
@@ -9,11 +10,10 @@ SendImg::SendImg()
 
 }
 
-
 //消费线程
 void SendImg::run()
 {
-    while(1)
+    for(;;)
     {
         queue_lock.lock(); //加锁
 
@@ -24,30 +24,36 @@ void SendImg::run()
         }
 
         QImage img = imgqueue.front();
-        qDebug() << "quchu";
+        qDebug() << "取出队列:" << QThread::currentThreadId();
         imgqueue.pop_front();
         queue_lock.unlock();//解锁
         queue_waitCond.wakeAll(); //唤醒添加线程
 
 
         //构造消息体
-        MSGSend * imgsend = new MSGSend();
+        MESG * imgsend = new MESG();
         imgsend->msg_type = IMG_SEND;
         imgsend->len = img.sizeInBytes();
-        imgsend->data = new uchar[imgsend->len+1];
-        memcpy_s(imgsend->data, imgsend->len, img.bits(), imgsend->len);
+        imgsend->data = new uchar[imgsend->len];
+//        memcpy_s(imgsend->data, imgsend->len, img.bits(), imgsend->len);
+        memcpy(imgsend->data, img.bits(), imgsend->len);
 
         //加入发送队列
         queue_send.send_queueLock.lock();
+        while(queue_send.send_queue.size() > QUEUE_MAXSIZE)
+        {
+            queue_send.send_queueCond.wait(&queue_send.send_queueLock);
+        }
         queue_send.send_queue.push_back(imgsend);
         queue_send.send_queueLock.unlock();
+        queue_send.send_queueCond.wakeAll();
     }
 }
 
 //添加线程
 void SendImg::pushToQueue(QImage img)
 {
-    //qDebug() << "加入队列:" << QThread::currentThreadId();
+    qDebug() << "加入队列:" << QThread::currentThreadId();
     queue_lock.lock();
     while(imgqueue.size() > QUEUE_MAXSIZE)
     {
@@ -62,7 +68,7 @@ void SendImg::pushToQueue(QImage img)
 
 void SendImg::cameraImageCapture(QVideoFrame frame)
 {
-    qDebug() << QThread::currentThreadId() << this;
+//    qDebug() << QThread::currentThreadId() << this;
 
     if(frame.isValid() && frame.isReadable())
     {

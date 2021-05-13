@@ -23,6 +23,7 @@ SOURCES += \
     netheader.cpp \
     screen.cpp \
     sendimg.cpp \
+    sendtext.cpp \
     widget.cpp
 
 HEADERS += \
@@ -32,6 +33,7 @@ HEADERS += \
     netheader.h \
     screen.h \
     sendimg.h \
+    sendtext.h \
     widget.h
 
 FORMS += \

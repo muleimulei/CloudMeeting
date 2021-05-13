@@ -5,11 +5,11 @@
 #include <QVideoFrame>
 #include <QTcpSocket>
 #include "mytcpsocket.h"
+#include <QCamera>
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
 
-class QCamera;
 class QCameraImageCapture;
 class MyVideoSurface;
 class SendImg;
@@ -31,9 +31,9 @@ private:
     SendImg *_sendImg;
     QThread *_imgThread;
 
-//    QThre
-    MyTcpSocket *_mytcpsocket;
-    QThread *_recvThread;
+
+    //socket
+    MyTcpSocket * _mytcpSocket;
     void paintEvent(QPaintEvent *event);
 public:
     Widget(QWidget *parent = nullptr);
@@ -46,7 +46,7 @@ private slots:
     void on_openVedio_clicked();
 
     void on_connServer_clicked();
-    void cameraError();
+    void cameraError(QCamera::Error);
 private:
     Ui::Widget *ui;
 };

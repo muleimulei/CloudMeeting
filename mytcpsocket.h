@@ -10,13 +10,21 @@
 #endif
 
 typedef unsigned char uchar;
-class MyTcpSocket: public QThread, public QTcpSocket
+class MyTcpSocket: public QThread
 {
+    Q_OBJECT
 public:
-    MyTcpSocket(QObject *);
+    ~MyTcpSocket();
+    MyTcpSocket();
+    bool connectToServer(QString, QString, QIODevice::OpenModeFlag);
+    QString errorString();
+    void disconnectFromHost();
 private:
     void run() override;
-private slots:
+    QTcpSocket *_socktcp;
+    QThread *_sockThread;
+    uchar *sendbuf;
+public slots:
     void recvFromSocket();
 };
 

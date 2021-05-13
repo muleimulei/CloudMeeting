@@ -21,11 +21,12 @@ Widget::Widget(QWidget *parent)
 {
 
     qDebug() << QThread::currentThreadId();
+    //创建TCPsocket
+
     //ui界面
     _createmeet = false;
     _openCamera = false;
     Widget::pos = QRect(0.1 * Screen::width, 0.1 * Screen::height, 0.8 * Screen::width, 0.8 * Screen::height);
-
 
 
     ui->setupUi(this);
@@ -36,23 +37,23 @@ Widget::Widget(QWidget *parent)
     ui->joinmeetBtn->setDisabled(true);
     ui->createmeetBtn->setDisabled(true);
     ui->openAudio->setDisabled(true);
-    ui->openVedio->setDisabled(true);
+    //ui->openVedio->setDisabled(true);
 
     //创建传输视频帧线程
     _sendImg = new SendImg();
     _imgThread = new QThread();
     _sendImg->moveToThread(_imgThread); //新起线程接受视频帧
-    _sendImg->start();
     //_imgThread->start();
 
 
-
+    //数据处理
+    _mytcpSocket = new MyTcpSocket(); // 专管发送
 
 
     //配置摄像头
     _camera = new QCamera(this);
     //摄像头出错处理
-    connect(_camera, SIGNAL(error), this, SLOT(cameraError));
+    connect(_camera, SIGNAL(error(QCamera::Error)), this, SLOT(cameraError(QCamera::Error)));
     _imagecapture = new QCameraImageCapture(_camera);
     _myvideosurface = new MyVideoSurface(this);
 
@@ -63,14 +64,6 @@ Widget::Widget(QWidget *parent)
     //监听_imgThread退出信号
     connect(_imgThread, SIGNAL(finished()), _sendImg, SLOT(clearImgQueue()));
 
-    //创建TCPsocket
-    _mytcpsocket = new MyTcpSocket(this);
-    _recvThread = new QThread();
-    _recvThread->moveToThread(_mytcpsocket); // _recvThread 接收 _mytcpsocket 从套接字 获取的 数据
-
-
-
-
 
     //预览窗口重定向在MyVideoSurface
     _camera->setViewfinder(_myvideosurface);
@@ -79,8 +72,7 @@ Widget::Widget(QWidget *parent)
 
 Widget::~Widget()
 {
-    delete _recvThread;
-    delete _mytcpsocket;
+    delete _mytcpSocket;
     delete _camera;
     delete _imagecapture;
     delete _myvideosurface;
@@ -115,21 +107,26 @@ void Widget::paintEvent(QPaintEvent *event)
 void Widget::on_exitmeetBtn_clicked()
 {
 
+    if(_camera->status() == QCamera::ActiveStatus)
+    {
+        _camera->stop();
+    }
     ui->createmeetBtn->setDisabled(true);
     ui->exitmeetBtn->setDisabled(false);
     _createmeet = false;
     //-----------------------------------------
     // 关闭套接字
-    _mytcpsocket->disconnectFromHost();
-
 
     //关闭各个启动线程
     _imgThread->quit();
     _sendImg->quit();
 
-    //关闭TCP发送与传输
-    _mytcpsocket->quit();
-    _recvThread->quit();
+
+    //关闭socket
+    _mytcpSocket->disconnectFromHost();
+
+
+
     //-----------------------------------------
 }
 
@@ -141,6 +138,7 @@ void Widget::on_openVedio_clicked()
         if(_camera->error() == QCamera::NoError)
         {
             _imgThread->quit();
+            _sendImg->quit();
             ui->openVedio->setText("开启摄像头");
         }
     }else
@@ -149,6 +147,7 @@ void Widget::on_openVedio_clicked()
         if(_camera->error() == QCamera::NoError)
         {
             _imgThread->start();
+            _sendImg->start();
             ui->openVedio->setText("关闭摄像头");
         }
     }
@@ -176,30 +175,24 @@ void Widget::on_connServer_clicked()
         return;
     }
 
-    _mytcpsocket->connectToHost(ip, port.toUInt(), QIODevice::ReadWrite);
-
-    if(_mytcpsocket->waitForConnected(5000))
+    if(_mytcpSocket ->connectToServer(ip, port, QIODevice::ReadWrite))
     {
         ui->outlog->setText("成功连接到" + ip + ":" + port);
         ui->openAudio->setDisabled(false);
         ui->openVedio->setDisabled(false);
         ui->createmeetBtn->setDisabled(false);
         ui->exitmeetBtn->setDisabled(false);
-
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
-
-        _mytcpsocket->start(); //开启底层发送线程
-        _recvThread->start();//开启底层接受线程
     }
     else
     {
         ui->outlog->setText("连接失败,请重新连接...");
-        QMessageBox::warning(this, "Connection error", _mytcpsocket->errorString() , QMessageBox::Yes, QMessageBox::Yes);
+        QMessageBox::warning(this, "Connection error", _mytcpSocket->errorString() , QMessageBox::Yes, QMessageBox::Yes);
     }
 }
 
 
-void Widget::cameraError()
+void Widget::cameraError(QCamera::Error)
 {
     QMessageBox::warning(this, "Camera error", _camera->errorString() , QMessageBox::Yes, QMessageBox::Yes);
 }

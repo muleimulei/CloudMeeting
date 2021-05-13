@@ -5,10 +5,10 @@
 #include <QQueue>
 #include <QImage>
 #include <QWaitCondition>
-
+#define QUEUE_MAXSIZE 1500
 enum MSG_TYPE
 {
-    IMG_SEND,
+    IMG_SEND = 0,
     IMG_RECV,
     AUDIO_SEND,
     AUDIO_RECV,
@@ -46,8 +46,8 @@ struct QUEUE_SEND //发送队列
 struct QUEUE_RECV //接收队列
 {
     QMutex recv_queueLock;
-    QWaitCondition secv_queueCond;
-    QQueue<MESG *> send_queue;
+    QWaitCondition recv_queueCond;
+    QQueue<MESG *> recv_queue;
 };
 
 #endif // NETHEADER_H

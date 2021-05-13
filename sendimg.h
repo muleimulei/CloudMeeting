@@ -8,7 +8,7 @@
 #include <QVideoFrame>
 #include <QWaitCondition>
 
-#define QUEUE_MAXSIZE 1500
+
 class SendImg : public QThread
 {
     Q_OBJECT
