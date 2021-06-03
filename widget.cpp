@@ -48,7 +48,10 @@ Widget::Widget(QWidget *parent)
 
     //数据处理
     _mytcpSocket = new MyTcpSocket(); // 专管发送
+    connect(_mytcpSocket, SIGNAL(socketerror(QAbstractSocket::SocketError)), this, SLOT(mytcperror(QAbstractSocket::SocketError)));
 
+    //文本传输
+    _sendText = new SendText();
 
     //配置摄像头
     _camera = new QCamera(this);
@@ -85,9 +88,16 @@ void Widget::on_createmeetBtn_clicked()
 {
     if(false == _createmeet)
     {
-        _createmeet = true;
         ui->createmeetBtn->setDisabled(true);
-        ui->exitmeetBtn->setDisabled(false);
+        ui->openAudio->setDisabled(true);
+        ui->openVedio->setDisabled(true);
+        ui->exitmeetBtn->setDisabled(true);
+        _sendText->push_Text(CREATE_MEETING); //将 “创建会议"加入到发送队列
+
+
+//        _createmeet = true;
+//        ui->createmeetBtn->setDisabled(true);
+//        ui->exitmeetBtn->setDisabled(false);
     }
 }
 
@@ -111,6 +121,7 @@ void Widget::on_exitmeetBtn_clicked()
     {
         _camera->stop();
     }
+
     ui->createmeetBtn->setDisabled(true);
     ui->exitmeetBtn->setDisabled(false);
     _createmeet = false;
@@ -141,7 +152,8 @@ void Widget::on_openVedio_clicked()
             _sendImg->quit();
             ui->openVedio->setText("开启摄像头");
         }
-    }else
+    }
+    else
     {
         _camera->start(); //开启摄像头
         if(_camera->error() == QCamera::NoError)
@@ -183,6 +195,10 @@ void Widget::on_connServer_clicked()
         ui->createmeetBtn->setDisabled(false);
         ui->exitmeetBtn->setDisabled(false);
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
+
+        //开启文本传输线程
+        _sendText->start();
+        ui->connServer->setDisabled(true);
     }
     else
     {
@@ -195,4 +211,16 @@ void Widget::on_connServer_clicked()
 void Widget::cameraError(QCamera::Error)
 {
     QMessageBox::warning(this, "Camera error", _camera->errorString() , QMessageBox::Yes, QMessageBox::Yes);
+}
+
+void Widget::mytcperror(QAbstractSocket::SocketError err)
+{
+    if(err == QAbstractSocket::RemoteHostClosedError)
+    {
+        QMessageBox::warning(this, "Tcp error", _mytcpSocket->errorString() , QMessageBox::Yes, QMessageBox::Yes);
+        ui->createmeetBtn->setDisabled(true);
+        ui->exitmeetBtn->setDisabled(true);
+        ui->connServer->setDisabled(false);
+        ui->outlog->setText(QString("远程服务器关闭"));
+    }
 }

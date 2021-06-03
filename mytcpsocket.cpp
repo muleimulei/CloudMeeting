@@ -2,6 +2,7 @@
 #include "netheader.h"
 #include <QHostAddress>
 #include <QtEndian>
+#include <QMetaObject>
 
 extern QUEUE_SEND queue_send;
 extern QUEUE_RECV queue_recv;
@@ -13,18 +14,28 @@ MyTcpSocket::MyTcpSocket()
     _sockThread = new  QThread();
     this->moveToThread(_sockThread);
     sendbuf =(uchar *) malloc(2 * MB);
-    connect(_socktcp, SIGNAL(readyRead()), this, SLOT(recvFromSocket()));
+    connect(_socktcp, SIGNAL(readyRead()), this, SLOT(recvFromSocket())); //接受数据
+    connect(_socktcp, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(errorDetect(QAbstractSocket::SocketError)));
+    qRegisterMetaType<QAbstractSocket::SocketError>();
+}
+
+void MyTcpSocket::errorDetect(QAbstractSocket::SocketError error)
+{
+    emit socketerror(error);
 }
 
 void MyTcpSocket::run()
 {
+
+
     quint64 bytestowrite = 0;
     //构造消息头
     sendbuf[0] = '$';
     quint32 ip = _socktcp->localAddress().toIPv4Address();
     qToBigEndian<quint32>(ip,  sendbuf + 1);
 
-
+    // $_IPV4_MSGType_MSGSize_# // 12
+    // 1 4 2 4 1
     // 底层写数据线程
     for(;;)
     {
@@ -44,10 +55,11 @@ void MyTcpSocket::run()
         {
             qToBigEndian<quint16>(CREATE_MEETING, sendbuf + bytestowrite);
             bytestowrite += 2;
-        }
-        sendbuf[bytestowrite] = '#';
 
-        bytestowrite ++;
+            qToBigEndian<quint32>(bytestowrite + 5, sendbuf + bytestowrite);
+            sendbuf[bytestowrite+4] = '#';
+            bytestowrite += 5;
+        }
 
         qint64 hastowrite = bytestowrite;
         qint64 ret = 0, haswrite = 0;
@@ -66,7 +78,8 @@ void MyTcpSocket::run()
             haswrite += ret;
             hastowrite -= ret;
         }
-        qDebug() << "send success";
+
+        _socktcp->waitForBytesWritten();
 
         if(send->msg_type == CREATE_MEETING)
         {
@@ -77,7 +90,9 @@ void MyTcpSocket::run()
 
 void MyTcpSocket::recvFromSocket()
 {
-
+    char buf[100];
+    _socktcp->read(buf, 100);
+    qDebug() << QString(buf);
 }
 
 MyTcpSocket::~MyTcpSocket()
@@ -105,11 +120,11 @@ QString MyTcpSocket::errorString()
 
 void MyTcpSocket::disconnectFromHost()
 {
-    if(this->isRunning())
+    if(this->isRunning()) // read
     {
         this->quit();
     }
-    if(_sockThread->isRunning())
+    if(_sockThread->isRunning()) //write
     {
         _sockThread->quit();
     }

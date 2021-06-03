@@ -24,8 +24,13 @@ private:
     QTcpSocket *_socktcp;
     QThread *_sockThread;
     uchar *sendbuf;
+private slots:
+    void errorDetect(QAbstractSocket::SocketError);
 public slots:
     void recvFromSocket();
+
+signals:
+    void socketerror(QAbstractSocket::SocketError);
 };
 
 #endif // MYTCPSOCKET_H

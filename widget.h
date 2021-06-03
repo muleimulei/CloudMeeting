@@ -6,6 +6,7 @@
 #include <QTcpSocket>
 #include "mytcpsocket.h"
 #include <QCamera>
+#include "sendtext.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
@@ -32,6 +33,7 @@ private:
     QThread *_imgThread;
 
 
+    SendText * _sendText;
     //socket
     MyTcpSocket * _mytcpSocket;
     void paintEvent(QPaintEvent *event);
@@ -44,9 +46,9 @@ private slots:
     void on_exitmeetBtn_clicked();
 
     void on_openVedio_clicked();
-
     void on_connServer_clicked();
     void cameraError(QCamera::Error);
+    void mytcperror(QAbstractSocket::SocketError);
 private:
     Ui::Widget *ui;
 };

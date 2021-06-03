@@ -17,7 +17,7 @@ void SendText::push_Text(MSG_TYPE msgType, QString str)
         queue_waitCond.wait(&textqueue_lock);
     }
     textqueue.push_back(M(str, msgType));
-//    qDebug() << "jiaru";
+    qDebug() << "jiaru";
     textqueue_lock.unlock();
     queue_waitCond.wakeAll();
 }
