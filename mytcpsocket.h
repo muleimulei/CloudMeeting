@@ -21,6 +21,7 @@ public:
     void disconnectFromHost();
 private:
     void run() override;
+    quint64 readn(char *, quint64, int);
     QTcpSocket *_socktcp;
     QThread *_sockThread;
     uchar *sendbuf;

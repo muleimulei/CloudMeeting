@@ -6,6 +6,9 @@
 #include <QImage>
 #include <QWaitCondition>
 #define QUEUE_MAXSIZE 1500
+#ifndef MB
+#define MB 1024*1024
+#endif
 enum MSG_TYPE
 {
     IMG_SEND = 0,
@@ -16,7 +19,10 @@ enum MSG_TYPE
     TEXT_RECV,
     CREATE_MEETING,
     EXIT_MEETING,
-    JOIN_MEETING
+    JOIN_MEETING,
+
+    CREATE_MEETING_RESPONSE = 20,
+
 };
 
 enum IMG_FORMAT

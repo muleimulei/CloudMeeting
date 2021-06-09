@@ -17,6 +17,7 @@ MyTcpSocket::MyTcpSocket()
     connect(_socktcp, SIGNAL(readyRead()), this, SLOT(recvFromSocket())); //接受数据
     connect(_socktcp, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(errorDetect(QAbstractSocket::SocketError)));
     qRegisterMetaType<QAbstractSocket::SocketError>();
+
 }
 
 void MyTcpSocket::errorDetect(QAbstractSocket::SocketError error)
@@ -26,8 +27,6 @@ void MyTcpSocket::errorDetect(QAbstractSocket::SocketError error)
 
 void MyTcpSocket::run()
 {
-
-
     quint64 bytestowrite = 0;
     //构造消息头
     sendbuf[0] = '$';
@@ -88,11 +87,66 @@ void MyTcpSocket::run()
     }
 }
 
+
+
+quint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
+{
+    quint64 hastoread = n;
+    quint64 hasread = 0;
+    do
+    {
+        qint64 ret  = _socktcp->read(buf + hasread, hastoread );
+        if(ret == 0)
+        {
+            return hasread;
+        }
+        hasread += ret;
+        hastoread -= ret;
+    }while(hastoread > 0 && hasread < maxsize);
+    return hasread;
+}
+
+
 void MyTcpSocket::recvFromSocket()
 {
-    char buf[100];
-    _socktcp->read(buf, 100);
-    qDebug() << QString(buf);
+    char *buf = (char *)malloc(4 * MB);
+    quint64 rlen = this->readn(buf, 4 * MB, 11); // 11 消息头长度
+    if(rlen < 11)
+    {
+        qDebug() << "data size < 11";
+        free(buf);
+        return;
+    }
+    qDebug() << "datalen = " << rlen;
+    if(buf[0] == '$')
+    {
+        MSG_TYPE msgtype;
+        qFromBigEndian<quint16>(buf + 1, 2, &msgtype);
+        if(msgtype == CREATE_MEETING_RESPONSE)
+        {
+            quint32 datalen;
+            qFromBigEndian<quint32>(buf + 7, 4, &datalen);
+
+            //read data
+            rlen = this->readn(buf, 4 * MB, datalen + 1);
+            if(rlen < datalen + 1)
+            {
+                qDebug() << "data size < datalen + 1";
+                free(buf);
+                return;
+            }
+            else
+            {
+                qint32 room;
+                qFromBigEndian<qint32>(buf, 4, &room);
+                qDebug() << room;
+            }
+        }
+    }
+    else
+    {
+        qDebug() << "data format error";
+    }
 }
 
 MyTcpSocket::~MyTcpSocket()
