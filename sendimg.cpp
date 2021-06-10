@@ -39,14 +39,7 @@ void SendImg::run()
         memcpy(imgsend->data, img.bits(), imgsend->len);
 
         //加入发送队列
-        queue_send.send_queueLock.lock();
-        while(queue_send.send_queue.size() > QUEUE_MAXSIZE)
-        {
-            queue_send.send_queueCond.wait(&queue_send.send_queueLock);
-        }
-        queue_send.send_queue.push_back(imgsend);
-        queue_send.send_queueLock.unlock();
-        queue_send.send_queueCond.wakeAll();
+        queue_send.push_msg(imgsend);
     }
 }
 

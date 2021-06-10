@@ -21,6 +21,7 @@ SOURCES += \
     mytcpsocket.cpp \
     myvideosurface.cpp \
     netheader.cpp \
+    recvsolve.cpp \
     screen.cpp \
     sendimg.cpp \
     sendtext.cpp \
@@ -31,6 +32,7 @@ HEADERS += \
     mytcpsocket.h \
     myvideosurface.h \
     netheader.h \
+    recvsolve.h \
     screen.h \
     sendimg.h \
     sendtext.h \

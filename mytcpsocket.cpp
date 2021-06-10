@@ -29,37 +29,38 @@ void MyTcpSocket::run()
 {
     quint64 bytestowrite = 0;
     //构造消息头
-    sendbuf[0] = '$';
-    quint32 ip = _socktcp->localAddress().toIPv4Address();
-    qToBigEndian<quint32>(ip,  sendbuf + 1);
-
-    // $_IPV4_MSGType_MSGSize_# // 12
-    // 1 4 2 4 1
-    // 底层写数据线程
+    sendbuf[bytestowrite++] = '$';
+    /*
+    *$_MSGType_IPV4_MSGSize_data_# //
+    * 1 2 4 4 len(MSGSize) 1
+    *底层写数据线程
+    */
     for(;;)
     {
-        bytestowrite = 5;
+
         //构造消息体
-        queue_send.send_queueLock.lock();
-        while(queue_send.send_queue.size() == 0)
-        {
-            queue_send.send_queueCond.wait(&queue_send.send_queueLock);
-        }
-        MESG * send = queue_send.send_queue.front();
-        queue_send.send_queue.pop_front();
-        queue_send.send_queueLock.unlock();
-        queue_send.send_queueCond.wakeAll();
+        MESG * send = queue_send.pop_msg();
 
         if(send->msg_type == CREATE_MEETING)
         {
             qToBigEndian<quint16>(CREATE_MEETING, sendbuf + bytestowrite);
             bytestowrite += 2;
 
-            qToBigEndian<quint32>(bytestowrite + 5, sendbuf + bytestowrite);
-            sendbuf[bytestowrite+4] = '#';
-            bytestowrite += 5;
+            quint32 ip = _socktcp->localAddress().toIPv4Address();
+            qToBigEndian<quint32>(ip,  sendbuf + bytestowrite);
+            bytestowrite += 4;
+
+
+            qToBigEndian<quint32>(0, sendbuf + bytestowrite);
+            bytestowrite += 4;
         }
 
+        //将数据拷入sendbuf
+        memcpy(sendbuf + bytestowrite, send->data, send->len);
+        bytestowrite += send->len;
+        sendbuf[bytestowrite++] = '#';
+
+        //----------------write to server-------------------------
         qint64 hastowrite = bytestowrite;
         qint64 ret = 0, haswrite = 0;
         while((ret = _socktcp->write((char *)sendbuf + haswrite, hastowrite - haswrite)) < hastowrite )
@@ -80,6 +81,7 @@ void MyTcpSocket::run()
 
         _socktcp->waitForBytesWritten();
 
+        //free
         if(send->msg_type == CREATE_MEETING)
         {
             delete send;
@@ -89,13 +91,17 @@ void MyTcpSocket::run()
 
 
 
-quint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
+qint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
 {
     quint64 hastoread = n;
     quint64 hasread = 0;
     do
     {
-        qint64 ret  = _socktcp->read(buf + hasread, hastoread );
+        qint64 ret  = _socktcp->read(buf + hasread, hastoread);
+        if(ret < 0)
+        {
+            return -1;
+        }
         if(ret == 0)
         {
             return hasread;
@@ -109,15 +115,23 @@ quint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
 
 void MyTcpSocket::recvFromSocket()
 {
+    /*
+    *$_msgtype_ip_size_data_#
+    *
+    */
     char *buf = (char *)malloc(4 * MB);
     quint64 rlen = this->readn(buf, 4 * MB, 11); // 11 消息头长度
+    if(rlen < 0)
+    {
+        return;
+    }
     if(rlen < 11)
     {
         qDebug() << "data size < 11";
         free(buf);
-        return;
+        buf = NULL;
     }
-    qDebug() << "datalen = " << rlen;
+//    qDebug() << "datalen = " << rlen;
     if(buf[0] == '$')
     {
         MSG_TYPE msgtype;
@@ -128,30 +142,53 @@ void MyTcpSocket::recvFromSocket()
             qFromBigEndian<quint32>(buf + 7, 4, &datalen);
 
             //read data
-            rlen = this->readn(buf, 4 * MB, datalen + 1);
+            rlen = this->readn(buf, 4 * MB, datalen + 1); // read data+#
             if(rlen < datalen + 1)
             {
                 qDebug() << "data size < datalen + 1";
                 free(buf);
                 return;
             }
-            else
+            else if(buf[rlen - 1] == '#')
             {
-                qint32 room;
-                qFromBigEndian<qint32>(buf, 4, &room);
-                qDebug() << room;
+                qint32 roomNo;
+                qFromBigEndian<qint32>(buf, 4, &roomNo);
+
+                //将消息加入到接收队列
+                qDebug() << roomNo;
+
+                MESG *msg = new MESG();
+                msg->msg_type = CREATE_MEETING_RESPONSE;
+                msg->data = (uchar *)malloc(datalen);
+                memcpy(msg->data, &roomNo, datalen);
+                msg->len = datalen;
+                queue_recv.push_msg(msg);
             }
         }
     }
     else
     {
         qDebug() << "data format error";
+        free(buf);
+        buf = NULL;
     }
+
+    //free
+
+    if(buf)
+    {
+        free(buf);
+        buf = NULL;
+    }
+
+
 }
 
 MyTcpSocket::~MyTcpSocket()
 {
-
+    delete _socktcp;
+    delete _sockThread;
+    delete sendbuf;
 }
 
 bool MyTcpSocket::connectToServer(QString ip, QString port, QIODevice::OpenModeFlag flag)
@@ -184,13 +221,7 @@ void MyTcpSocket::disconnectFromHost()
     }
 
     //清空 发送 队列，清空接受队列
-    queue_send.send_queueLock.lock();
-    queue_send.send_queue.clear();
-    queue_send.send_queueLock.unlock();
-
-
-    queue_recv.recv_queueLock.lock();
-    queue_recv.recv_queue.clear();
-    queue_recv.recv_queueLock.unlock();
+    queue_send.clear();
+    queue_recv.clear();
 
 }

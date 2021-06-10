@@ -10,14 +10,14 @@ SendText::SendText()
 
 void SendText::push_Text(MSG_TYPE msgType, QString str)
 {
-    qDebug() << "加入队列:" << QThread::currentThreadId();
+//    qDebug() << "加入队列:" << QThread::currentThreadId();
     textqueue_lock.lock();
     while(textqueue.size() > QUEUE_MAXSIZE)
     {
         queue_waitCond.wait(&textqueue_lock);
     }
     textqueue.push_back(M(str, msgType));
-    qDebug() << "jiaru";
+//    qDebug() << "jiaru";
     textqueue_lock.unlock();
     queue_waitCond.wakeAll();
 }
@@ -48,18 +48,13 @@ void SendText::run()
 
         if(text.type == CREATE_MEETING)
         {
+            send->len = 0;
+            send->data = NULL;
             send->msg_type = CREATE_MEETING;
         }
 
 
         //加入发送队列
-        queue_send.send_queueLock.lock();
-        while(queue_send.send_queue.size() > QUEUE_MAXSIZE)
-        {
-            queue_send.send_queueCond.wait(&queue_send.send_queueLock);
-        }
-        queue_send.send_queue.push_back(send);
-        queue_send.send_queueLock.unlock();
-        queue_send.send_queueCond.wakeAll();
+        queue_send.push_msg(send);
     }
 }

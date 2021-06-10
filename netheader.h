@@ -44,16 +44,84 @@ struct MESG //消息结构体
 //-------------------------------
 struct QUEUE_SEND //发送队列
 {
+private:
     QMutex send_queueLock;
     QWaitCondition send_queueCond;
     QQueue<MESG *> send_queue;
+public:
+    void push_msg(MESG * msg)
+    {
+        send_queueLock.lock();
+        while(send_queue.size() > QUEUE_MAXSIZE)
+        {
+            send_queueCond.wait(&send_queueLock);
+        }
+        send_queue.push_back(msg);
+        send_queueLock.unlock();
+        send_queueCond.wakeAll();
+    }
+
+    MESG* pop_msg()
+    {
+        send_queueLock.lock();
+        while(send_queue.size() == 0)
+        {
+            send_queueCond.wait(&send_queueLock);
+        }
+        MESG * send = send_queue.front();
+        send_queue.pop_front();
+        send_queueLock.unlock();
+        send_queueCond.wakeAll();
+        return send;
+    }
+
+    void clear()
+    {
+        send_queueLock.lock();
+        send_queue.clear();
+        send_queueLock.unlock();
+    }
 };
 
 struct QUEUE_RECV //接收队列
 {
+private:
     QMutex recv_queueLock;
     QWaitCondition recv_queueCond;
     QQueue<MESG *> recv_queue;
+public:
+    void push_msg(MESG * msg)
+    {
+        recv_queueLock.lock();
+        while(recv_queue.size() > QUEUE_MAXSIZE)
+        {
+            recv_queueCond.wait(&recv_queueLock);
+        }
+        recv_queue.push_back(msg);
+        recv_queueLock.unlock();
+        recv_queueCond.wakeAll();
+    }
+
+    MESG* pop_msg()
+    {
+        recv_queueLock.lock();
+        while(recv_queue.size() == 0)
+        {
+            recv_queueCond.wait(&recv_queueLock);
+        }
+        MESG * send = recv_queue.front();
+        recv_queue.pop_front();
+        recv_queueLock.unlock();
+        recv_queueCond.wakeAll();
+        return send;
+    }
+
+    void clear()
+    {
+        recv_queueLock.lock();
+        recv_queue.clear();
+        recv_queueLock.unlock();
+    }
 };
 
 #endif // NETHEADER_H
