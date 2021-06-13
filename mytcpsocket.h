@@ -19,6 +19,7 @@ public:
     bool connectToServer(QString, QString, QIODevice::OpenModeFlag);
     QString errorString();
     void disconnectFromHost();
+    quint32 getlocalip();
 private:
     void run() override;
     qint64 readn(char *, quint64, int);

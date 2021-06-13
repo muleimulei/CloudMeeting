@@ -1,6 +1,6 @@
 #ifndef NETHEADER_H
 #define NETHEADER_H
-
+#include <QMetaType>
 #include <QMutex>
 #include <QQueue>
 #include <QImage>
@@ -22,14 +22,8 @@ enum MSG_TYPE
     JOIN_MEETING,
 
     CREATE_MEETING_RESPONSE = 20,
-
-};
-
-enum IMG_FORMAT
-{
-    Format_Invalid = 0,
-    Format_RGB32 = 1,
-    Format_ARGB32 = 2
+    PARTNER_EXIT = 21,
+    PARTNER_JOIN = 22,
 };
 
 struct MESG //消息结构体
@@ -37,9 +31,12 @@ struct MESG //消息结构体
     MSG_TYPE msg_type;
     uchar* data;
     long len;
-    IMG_FORMAT format;
+    QImage::Format format;
+    quint32 ip;
+    int width;
+    int height;
 };
-
+Q_DECLARE_METATYPE(MESG *);
 
 //-------------------------------
 struct QUEUE_SEND //发送队列

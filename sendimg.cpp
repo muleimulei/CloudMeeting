@@ -24,7 +24,7 @@ void SendImg::run()
         }
 
         QImage img = imgqueue.front();
-        qDebug() << "取出队列:" << QThread::currentThreadId();
+//        qDebug() << "取出队列:" << QThread::currentThreadId();
         imgqueue.pop_front();
         queue_lock.unlock();//解锁
         queue_waitCond.wakeAll(); //唤醒添加线程
@@ -35,6 +35,9 @@ void SendImg::run()
         imgsend->msg_type = IMG_SEND;
         imgsend->len = img.sizeInBytes();
         imgsend->data = new uchar[imgsend->len];
+        imgsend->format = img.format();
+        imgsend->width = img.width();
+        imgsend->height = img.height();
 //        memcpy_s(imgsend->data, imgsend->len, img.bits(), imgsend->len);
         memcpy(imgsend->data, img.bits(), imgsend->len);
 

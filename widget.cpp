@@ -12,7 +12,8 @@
 #include <QRegExp>
 #include <QRegExpValidator>
 #include <QMessageBox>
-
+#include <QScrollBar>
+#include <QHostAddress>
 QRect  Widget::pos = QRect(-1, -1, -1, -1);
 
 Widget::Widget(QWidget *parent)
@@ -20,7 +21,7 @@ Widget::Widget(QWidget *parent)
     , ui(new Ui::Widget)
 {
 
-    qDebug() << QThread::currentThreadId();
+    //qDebug() << QThread::currentThreadId();
     //创建TCPsocket
 
     //ui界面
@@ -28,8 +29,9 @@ Widget::Widget(QWidget *parent)
     _openCamera = false;
     Widget::pos = QRect(0.1 * Screen::width, 0.1 * Screen::height, 0.8 * Screen::width, 0.8 * Screen::height);
 
-
     ui->setupUi(this);
+    mainlabel_size = ui->mainshow_label->size();
+    mainip = 0;
     this->setGeometry(Widget::pos);
     this->setMinimumSize(QSize(Widget::pos.width() * 0.7, Widget::pos.height() * 0.7));
     this->setMaximumSize(QSize(Widget::pos.width(), Widget::pos.height()));
@@ -37,8 +39,10 @@ Widget::Widget(QWidget *parent)
     ui->joinmeetBtn->setDisabled(true);
     ui->createmeetBtn->setDisabled(true);
     ui->openAudio->setDisabled(true);
+    ui->openVedio->setDisabled(true);
     //ui->openVedio->setDisabled(true);
 
+    //-----------------------------------------------
     //创建传输视频帧线程
     _sendImg = new SendImg();
     _imgThread = new QThread();
@@ -64,13 +68,74 @@ Widget::Widget(QWidget *parent)
     //处理每一帧数据
     connect(_myvideosurface, SIGNAL(frameAvailable(QVideoFrame)), _sendImg, SLOT(cameraImageCapture(QVideoFrame)));
 
+
     //监听_imgThread退出信号
     connect(_imgThread, SIGNAL(finished()), _sendImg, SLOT(clearImgQueue()));
 
 
+    //---------启动接收数据线程-------------------------
+    _recvThread = new RecvSolve();
+    connect(_recvThread, SIGNAL(datarecv(MESG *)), this, SLOT(datasolve(MESG *)));
+    _recvThread->start();
+
     //预览窗口重定向在MyVideoSurface
     _camera->setViewfinder(_myvideosurface);
     _camera->setCaptureMode(QCamera::CaptureStillImage);
+
+    //设置滚动条
+    ui->scrollArea->verticalScrollBar()->setStyleSheet("QScrollBar:vertical"
+                                                       "{"
+                                                       "width:8px;"
+                                                       "background:rgba(0,0,0,0%);"
+                                                       "margin:0px,0px,0px,0px;"
+                                                       "padding-top:9px;"
+                                                       "padding-bottom:9px;"
+                                                       "}"
+                                                       "QScrollBar::handle:vertical"
+                                                       "{"
+                                                       "width:8px;"
+                                                       "background:rgba(0,0,0,25%);"
+                                                       " border-radius:4px;"
+                                                       "min-height:20;"
+                                                       "}"
+                                                       "QScrollBar::handle:vertical:hover"
+                                                       "{"
+                                                       "width:8px;"
+                                                       "background:rgba(0,0,0,50%);"
+                                                       " border-radius:4px;"
+                                                       "min-height:20;"
+                                                       "}"
+                                                       "QScrollBar::add-line:vertical"
+                                                       "{"
+                                                       "height:9px;width:8px;"
+                                                       "border-image:url(:/images/a/3.png);"
+                                                       "subcontrol-position:bottom;"
+                                                       "}"
+                                                       "QScrollBar::sub-line:vertical"
+                                                       "{"
+                                                       "height:9px;width:8px;"
+                                                       "border-image:url(:/images/a/1.png);"
+                                                       "subcontrol-position:top;"
+                                                       "}"
+                                                       "QScrollBar::add-line:vertical:hover"
+                                                       "{"
+                                                       "height:9px;width:8px;"
+                                                       "border-image:url(:/images/a/4.png);"
+                                                       "subcontrol-position:bottom;"
+                                                       "}"
+                                                       "QScrollBar::sub-line:vertical:hover"
+                                                       "{"
+                                                       "height:9px;width:8px;"
+                                                       "border-image:url(:/images/a/2.png);"
+                                                       "subcontrol-position:top;"
+                                                       "}"
+                                                       "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical"
+                                                       "{"
+                                                       "background:rgba(0,0,0,10%);"
+                                                       "border-radius:4px;"
+                                                       "}"
+                                                       );
+
 }
 
 Widget::~Widget()
@@ -81,6 +146,7 @@ Widget::~Widget()
     delete _myvideosurface;
     delete _imgThread;
     delete _sendImg;
+    delete _recvThread;
     delete ui;
 }
 
@@ -93,11 +159,6 @@ void Widget::on_createmeetBtn_clicked()
         ui->openVedio->setDisabled(true);
         ui->exitmeetBtn->setDisabled(true);
         _sendText->push_Text(CREATE_MEETING); //将 “创建会议"加入到发送队列
-
-
-//        _createmeet = true;
-//        ui->createmeetBtn->setDisabled(true);
-//        ui->exitmeetBtn->setDisabled(false);
     }
 }
 
@@ -123,21 +184,28 @@ void Widget::on_exitmeetBtn_clicked()
     }
 
     ui->createmeetBtn->setDisabled(true);
-    ui->exitmeetBtn->setDisabled(false);
+    ui->exitmeetBtn->setDisabled(true);
     _createmeet = false;
     //-----------------------------------------
     // 关闭套接字
 
     //关闭各个启动线程
-    _imgThread->quit();
-    _sendImg->quit();
+    if(_imgThread->isRunning())
+    {
+        _imgThread->quit();
+    }
 
+    if(_sendImg->isRunning())
+    {
+        _sendImg->quit();
+    }
 
     //关闭socket
     _mytcpSocket->disconnectFromHost();
-
-
-
+    ui->outlog->setText(QString("已退出会议"));
+    ui->connServer->setDisabled(false);
+    ui->groupBox->setTitle(QString("副屏幕"));
+    QMessageBox::warning(this, "Information", "退出会议" , QMessageBox::Yes, QMessageBox::Yes);
     //-----------------------------------------
 }
 
@@ -190,14 +258,15 @@ void Widget::on_connServer_clicked()
     if(_mytcpSocket ->connectToServer(ip, port, QIODevice::ReadWrite))
     {
         ui->outlog->setText("成功连接到" + ip + ":" + port);
-        ui->openAudio->setDisabled(false);
-        ui->openVedio->setDisabled(false);
+        ui->openAudio->setDisabled(true);
+        ui->openVedio->setDisabled(true);
         ui->createmeetBtn->setDisabled(false);
-        ui->exitmeetBtn->setDisabled(false);
+        ui->exitmeetBtn->setDisabled(true);
+        ui->joinmeetBtn->setDisabled(false);
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
 
         //开启文本传输线程
-        _sendText->start();
+        if(!_sendText->isRunning()) _sendText->start();
         ui->connServer->setDisabled(true);
     }
     else
@@ -215,12 +284,106 @@ void Widget::cameraError(QCamera::Error)
 
 void Widget::mytcperror(QAbstractSocket::SocketError err)
 {
+    ui->createmeetBtn->setDisabled(true);
+    ui->exitmeetBtn->setDisabled(true);
+    ui->connServer->setDisabled(false);
+    ui->joinmeetBtn->setDisabled(true);
+
     if(err == QAbstractSocket::RemoteHostClosedError)
     {
-        QMessageBox::warning(this, "Tcp error", _mytcpSocket->errorString() , QMessageBox::Yes, QMessageBox::Yes);
-        ui->createmeetBtn->setDisabled(true);
-        ui->exitmeetBtn->setDisabled(true);
-        ui->connServer->setDisabled(false);
-        ui->outlog->setText(QString("远程服务器关闭"));
+        QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
+        _mytcpSocket->disconnectFromHost();
+        ui->outlog->setText(QString("会议结束"));
     }
+    else
+    {
+        QMessageBox::warning(this, "Network Error", "网络异常" , QMessageBox::Yes, QMessageBox::Yes);
+        _mytcpSocket->disconnectFromHost();
+        ui->outlog->setText(QString("网络异常......"));
+    }
+
+}
+
+
+void Widget::datasolve(MESG *msg)
+{
+//    qDebug() << msg;
+    if(msg->msg_type == CREATE_MEETING_RESPONSE)
+    {
+        int roomno;
+        memcpy(&roomno, msg->data, msg->len);
+
+        QMessageBox::information(this, "Room No", QString("房间号：%1").arg(roomno), QMessageBox::Yes, QMessageBox::Yes);
+
+        ui->groupBox->setTitle(QString("房间号: %1").arg(roomno));
+
+//        qDebug() <<"hello" << roomno;
+        ui->exitmeetBtn->setDisabled(false);
+        ui->openAudio->setDisabled(false);
+        ui->openVedio->setDisabled(false);
+        ui->joinmeetBtn->setDisabled(true);
+
+        //添加用户自己
+        addPartner(_mytcpSocket->getlocalip());
+    }
+    else if(msg->msg_type == IMG_RECV)
+    {
+        QHostAddress a(msg->ip);
+        qDebug() << a.toString();
+        QImage img(msg->data, msg->width, msg->height, msg->format);
+        if(partner.count(msg->ip) == 1)
+        {
+            Partner* p = partner[msg->ip];
+            p->setpic(img);
+        }
+        else
+        {
+            Partner* p = addPartner(msg->ip);
+            p->setpic(img);
+        }
+
+        if(msg->ip == mainip)
+        {
+            ui->mainshow_label->setPixmap(QPixmap::fromImage(img).scaled(mainlabel_size));
+        }
+    }
+
+    if(msg->data)
+    {
+        free(msg->data);
+        msg->data = NULL;
+    }
+    if(msg)
+    {
+        free(msg);
+        msg = NULL;
+    }
+}
+
+Partner* Widget::addPartner(quint32 ip)
+{
+    Partner *p = new Partner(ui->scrollAreaWidgetContents ,ip);
+    connect(p, SIGNAL(sendip(quint32)), this, SLOT(recvip(quint32)));
+    partner[ip] =p;
+    ui->verticalLayout_3->addWidget(p);
+    return p;
+}
+
+void Widget::removePartner(quint32 ip)
+{
+    if(partner.count(ip) == 1)
+    {
+        Partner *p = partner[ip];
+        disconnect(p, SIGNAL(sendip(quint32)), this, SLOT(recvip(quint32)));
+        ui->verticalLayout_3->removeWidget(p);
+        partner.remove(ip);
+        delete p;
+    }
+}
+
+
+void Widget::recvip(quint32 ip)
+{
+    mainip = ip;
+    qDebug() << ip;
 }
