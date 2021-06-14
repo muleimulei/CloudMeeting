@@ -24,6 +24,7 @@ enum MSG_TYPE
     CREATE_MEETING_RESPONSE = 20,
     PARTNER_EXIT = 21,
     PARTNER_JOIN = 22,
+    JOIN_MEETING_RESPONSE = 23,
 };
 
 struct MESG //消息结构体

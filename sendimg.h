@@ -22,7 +22,7 @@ public:
 
     void pushToQueue(QImage);
 public slots:
-    void cameraImageCapture(QVideoFrame); //捕获到视频帧
+    void ImageCapture(QImage); //捕获到视频帧
     void clearImgQueue(); //线程结束时，清空视频帧队列
 };
 

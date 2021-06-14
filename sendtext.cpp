@@ -37,7 +37,7 @@ void SendText::run()
 
         M text = textqueue.front();
 
-        qDebug() << "取出队列:" << QThread::currentThreadId();
+//        qDebug() << "取出队列:" << QThread::currentThreadId();
 
         textqueue.pop_front();
         textqueue_lock.unlock();//解锁
@@ -52,7 +52,14 @@ void SendText::run()
             send->data = NULL;
             send->msg_type = CREATE_MEETING;
         }
-
+        else if(text.type == JOIN_MEETING)
+        {
+            send->msg_type = JOIN_MEETING;
+            send->len = 4; //房间号占4个字节
+            send->data = (uchar *)malloc(send->len);
+            quint32 roomno = text.str.toUInt();
+            memcpy(send->data, &roomno, sizeof (roomno));
+        }
 
         //加入发送队列
         queue_send.push_msg(send);

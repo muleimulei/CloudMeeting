@@ -68,6 +68,16 @@ void MyTcpSocket::run()
             qToBigEndian<quint32>(send->height, sendbuf + bytestowrite);
             bytestowrite += 4;
         }
+        else if(send->msg_type == JOIN_MEETING)
+        {
+//            quint32 roomno;
+//            memcpy(&roomno, send->data, send->len);
+//            qDebug() << "room " << roomno;
+            qToBigEndian<quint32>(send->len, sendbuf + bytestowrite);
+            bytestowrite += 4;
+            qToBigEndian<quint32>(send->data, 4,  send->data);
+            bytestowrite += 4;
+        }
 
         //将数据拷入sendbuf
         memcpy(sendbuf + bytestowrite, send->data, send->len);
