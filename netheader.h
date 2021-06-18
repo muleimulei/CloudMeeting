@@ -26,6 +26,7 @@ enum MSG_TYPE
     PARTNER_JOIN = 22,
     JOIN_MEETING_RESPONSE = 23,
 };
+Q_DECLARE_METATYPE(MSG_TYPE);
 
 struct MESG //消息结构体
 {

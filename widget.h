@@ -9,6 +9,7 @@
 #include "sendtext.h"
 #include "recvsolve.h"
 #include "partner.h"
+#include "netheader.h"
 #include <QMap>
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
@@ -38,6 +39,7 @@ private:
 
     RecvSolve *_recvThread;
     SendText * _sendText;
+    QThread *_textThread;
     //socket
     MyTcpSocket * _mytcpSocket;
     void paintEvent(QPaintEvent *event);
@@ -66,6 +68,7 @@ private slots:
 
 signals:
     void pushImg(QImage);
+    void PushText(MSG_TYPE, QString = "");
 private:
     Ui::Widget *ui;
 };

@@ -12,6 +12,7 @@ class RecvSolve : public QThread
     Q_OBJECT
 public:
     RecvSolve();
+    ~RecvSolve();
     void run() override;
 signals:
     void datarecv(MESG *);

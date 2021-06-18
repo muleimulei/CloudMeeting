@@ -8,18 +8,26 @@ SendText::SendText()
 
 }
 
+SendText::~SendText()
+{
+    if(this->isRunning())
+    {
+        this->quit();
+    }
+}
+
 void SendText::push_Text(MSG_TYPE msgType, QString str)
 {
-//    qDebug() << "加入队列:" << QThread::currentThreadId();
     textqueue_lock.lock();
     while(textqueue.size() > QUEUE_MAXSIZE)
     {
         queue_waitCond.wait(&textqueue_lock);
     }
     textqueue.push_back(M(str, msgType));
-//    qDebug() << "jiaru";
+
     textqueue_lock.unlock();
     queue_waitCond.wakeAll();
+//    qDebug() << "加入队列:" << QThread::currentThreadId();
 }
 
 

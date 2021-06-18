@@ -29,6 +29,8 @@ private:
     void run() override;
 public:
     SendText();
+    ~SendText();
+private slots:
     void push_Text(MSG_TYPE, QString str = "");
 };
 
