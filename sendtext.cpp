@@ -13,6 +13,7 @@ SendText::~SendText()
     if(this->isRunning())
     {
         this->quit();
+        this->wait();
     }
 }
 

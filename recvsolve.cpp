@@ -25,6 +25,8 @@ RecvSolve::~RecvSolve()
 {
     if(this->isRunning())
     {
+        this->terminate();
         this->quit();
+        this->wait();
     }
 }

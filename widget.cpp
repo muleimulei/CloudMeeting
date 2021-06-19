@@ -26,6 +26,7 @@ Widget::Widget(QWidget *parent)
     //ui界面
     _createmeet = false;
     _openCamera = false;
+    _joinmeet = false;
     Widget::pos = QRect(0.1 * Screen::width, 0.1 * Screen::height, 0.8 * Screen::width, 0.8 * Screen::height);
 
     ui->setupUi(this);
@@ -51,7 +52,7 @@ Widget::Widget(QWidget *parent)
 
     //数据处理
     _mytcpSocket = new MyTcpSocket(); // 专管发送
-    connect(_mytcpSocket, SIGNAL(socketerror(QAbstractSocket::SocketError)), this, SLOT(mytcperror(QAbstractSocket::SocketError)));
+    connect(_mytcpSocket, SIGNAL(socketerror(QAbstractSocket::SocketError)), this, SLOT(mytcperror(QAbstractSocket::SocketError)), Qt::QueuedConnection);
 
     //文本传输
     _sendText = new SendText();
@@ -75,10 +76,8 @@ Widget::Widget(QWidget *parent)
     connect(this, SIGNAL(pushImg(QImage)), _sendImg, SLOT(ImageCapture(QImage)));
 
 
-
-
     //监听_imgThread退出信号
-    connect(_imgThread, SIGNAL(finished()), _sendImg, SLOT(clearImgQueue()));
+    connect(_imgThread, SIGNAL(finished()), _sendImg, SLOT(clearImgQueue()), Qt::QueuedConnection);
 
 
     //---------启动接收数据线程-------------------------
@@ -179,6 +178,7 @@ void Widget::cameraImageCapture(QVideoFrame frame)
 
 Widget::~Widget()
 {
+    if(_recvThread) delete _recvThread;
     delete _mytcpSocket;
     delete _camera;
     delete _imagecapture;
@@ -187,24 +187,24 @@ Widget::~Widget()
     if(_imgThread->isRunning())
     {
         _imgThread->quit();
+        _imgThread->wait();
     }
     delete _imgThread;
 
     if(_sendImg->isRunning())
     {
         _sendImg->quit();
+        _sendImg->wait();
     }
     delete _sendImg;
 
-    delete _sendText;
+    if(_sendText) delete _sendText;
     if(_textThread->isRunning())
     {
         _textThread->quit();
+        _textThread->wait();
     }
-    if(_recvThread) delete _recvThread;
-
     delete ui;
-
 }
 
 void Widget::on_createmeetBtn_clicked()
@@ -363,11 +363,9 @@ void Widget::mytcperror(QAbstractSocket::SocketError err)
 
     if(err == QAbstractSocket::RemoteHostClosedError)
     {
-//        if(_createmeet)
-//        {
-//            ui->outlog->setText(QString("会议结束"));
-//            QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
-//        }
+
+        if(_createmeet || _joinmeet) QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
+
 
         _mytcpSocket->disconnectFromHost();
         ui->outlog->setText(QString("关闭与服务器的连接"));
@@ -378,7 +376,6 @@ void Widget::mytcperror(QAbstractSocket::SocketError err)
         _mytcpSocket->disconnectFromHost();
         ui->outlog->setText(QString("网络异常......"));
     }
-
     clearPartner();
 }
 
@@ -450,10 +447,32 @@ void Widget::datasolve(MESG *msg)
         else if(c == 1)
         {
             QMessageBox::warning(this, "Meeting information", "加入成功" , QMessageBox::Yes, QMessageBox::Yes);
+            //添加用户自己
+            addPartner(_mytcpSocket->getlocalip());
+            mainip = _mytcpSocket->getlocalip();
+            ui->groupBox_2->setTitle(QHostAddress(mainip).toString());
+            ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
+            ui->joinmeetBtn->setDisabled(true);
+            ui->exitmeetBtn->setDisabled(false);
+            ui->createmeetBtn->setDisabled(true);
+            _joinmeet = true;
         }
         else if(c == 2)
         {
             QMessageBox::warning(this, "Meeting information", "成员已满，无法加入" , QMessageBox::Yes, QMessageBox::Yes);
+        }
+    }
+    else if(msg->msg_type == PARTNER_JOIN)
+    {
+        Partner* p = addPartner(msg->ip);
+        p->setpic(QImage(":/myImage/1.jpg"));
+    }
+    else if(msg->msg_type == PARTNER_EXIT)
+    {
+        removePartner(msg->ip);
+        if(mainip == msg->ip)
+        {
+            ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
         }
     }
     if(msg->data)
@@ -486,6 +505,7 @@ void Widget::removePartner(quint32 ip)
         ui->verticalLayout_3->removeWidget(p);
         delete p;
     }
+    partner.remove(ip);
 }
 
 void Widget::clearPartner()

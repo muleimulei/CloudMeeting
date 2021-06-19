@@ -28,6 +28,7 @@ private:
     QCamera *_camera; //摄像头
     QCameraImageCapture *_imagecapture; //截屏
     bool  _createmeet; //是否创建会议
+    bool _joinmeet; // 加入会议
     bool _openCamera; //是否开启摄像头
 
     MyVideoSurface *_myvideosurface;
