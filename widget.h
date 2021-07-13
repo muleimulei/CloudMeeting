@@ -61,7 +61,7 @@ private slots:
     void on_openVedio_clicked();
     void on_connServer_clicked();
     void cameraError(QCamera::Error);
-    void mytcperror(QAbstractSocket::SocketError);
+//    void mytcperror(QAbstractSocket::SocketError);
     void datasolve(MESG *);
     void recvip(quint32);
     void cameraImageCapture(QVideoFrame frame);

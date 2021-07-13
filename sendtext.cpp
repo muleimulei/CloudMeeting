@@ -2,19 +2,17 @@
 #include <QDebug>
 
 extern QUEUE_SEND queue_send;
-
-SendText::SendText()
+#ifndef WAITSECONDS
+#define WAITSECONDS 2
+#endif
+SendText::SendText(QObject *par):QThread(par)
 {
 
 }
 
 SendText::~SendText()
 {
-    if(this->isRunning())
-    {
-        this->quit();
-        this->wait();
-    }
+
 }
 
 void SendText::push_Text(MSG_TYPE msgType, QString str)
@@ -27,21 +25,28 @@ void SendText::push_Text(MSG_TYPE msgType, QString str)
     textqueue.push_back(M(str, msgType));
 
     textqueue_lock.unlock();
-    queue_waitCond.wakeAll();
-//    qDebug() << "加入队列:" << QThread::currentThreadId();
+    queue_waitCond.wakeOne();
 }
 
 
 void SendText::run()
 {
+    m_isCanRun = true;
     for(;;)
     {
         textqueue_lock.lock(); //加锁
-
         while(textqueue.size() == 0)
         {
-            //qDebug() << this << QThread::currentThreadId();
-            queue_waitCond.wait(&textqueue_lock);
+            bool f = queue_waitCond.wait(&textqueue_lock, WAITSECONDS * 1000);
+            if(f == false) //timeout
+            {
+                QMutexLocker locker(&m_lock);
+                if(m_isCanRun == false)
+                {
+                    textqueue_lock.unlock();
+                    return;
+                }
+            }
         }
 
         M text = textqueue.front();
@@ -50,7 +55,7 @@ void SendText::run()
 
         textqueue.pop_front();
         textqueue_lock.unlock();//解锁
-        queue_waitCond.wakeAll(); //唤醒添加线程
+        queue_waitCond.wakeOne(); //唤醒添加线程
 
         //构造消息体
         MESG * send = new MESG();
@@ -73,4 +78,9 @@ void SendText::run()
         //加入发送队列
         queue_send.push_msg(send);
     }
+}
+void SendText::stopImmediately()
+{
+    QMutexLocker locker(&m_lock);
+    m_isCanRun = false;
 }

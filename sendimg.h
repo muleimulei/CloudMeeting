@@ -17,13 +17,16 @@ private:
     QMutex queue_lock;
     QWaitCondition queue_waitCond;
     void run() override;
+    QMutex m_lock;
+    volatile bool m_isCanRun;
 public:
-    SendImg();
+    SendImg(QObject *par = NULL);
 
     void pushToQueue(QImage);
 public slots:
     void ImageCapture(QImage); //捕获到视频帧
     void clearImgQueue(); //线程结束时，清空视频帧队列
+    void stopImmediately();
 };
 
 #endif // SENDIMG_H

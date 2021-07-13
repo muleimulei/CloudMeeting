@@ -3,25 +3,54 @@
 #include <QHostAddress>
 #include <QtEndian>
 #include <QMetaObject>
+#include <QMutexLocker>
 
 extern QUEUE_SEND queue_send;
 extern QUEUE_RECV queue_recv;
 
-MyTcpSocket::MyTcpSocket()
+void MyTcpSocket::stopImmediately()
 {
-   // qDebug() << "hello " << QThread::currentThread();
-    _socktcp = new QTcpSocket();
-    _sockThread = new  QThread();
-    this->moveToThread(_sockThread);
-    sendbuf =(uchar *) malloc(2 * MB);
-    connect(_socktcp, SIGNAL(readyRead()), this, SLOT(recvFromSocket()), Qt::QueuedConnection); //接受数据
-    connect(_socktcp, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(errorDetect(QAbstractSocket::SocketError)), Qt::DirectConnection);
-    qRegisterMetaType<QAbstractSocket::SocketError>();
+    {
+        QMutexLocker lock(&m_lock);
+        if(m_isCanRun == true) m_isCanRun = false;
+    }
+    //关闭read
+    _sockThread->quit();
+    _sockThread->wait();
 }
+
+
+MyTcpSocket::MyTcpSocket(QObject *par):QThread(par)
+{
+    qRegisterMetaType<QAbstractSocket::SocketError>();
+    _socktcp = new QTcpSocket(); //tcp
+
+    _sockThread = new QThread(); //发送数据线程
+    this->moveToThread(_sockThread);
+
+    sendbuf =(uchar *) malloc(2 * MB);
+    connect(_socktcp, SIGNAL(readyRead()), this, SLOT(recvFromSocket())); //接受数据
+
+    //处理套接字错误
+    connect(_socktcp, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(errorDetect(QAbstractSocket::SocketError)));
+
+}
+
 
 void MyTcpSocket::errorDetect(QAbstractSocket::SocketError error)
 {
-    emit socketerror(error);
+    qDebug() <<"Sock error" <<QThread::currentThreadId();
+    MESG * msg = (MESG *) malloc(sizeof (MESG));
+    memset(msg, 0, sizeof (MESG));
+    if(error == QAbstractSocket::RemoteHostClosedError)
+    {
+        msg->msg_type = RemoteHostClosedError;
+    }
+    else
+    {
+        msg->msg_type = OtherNetError;
+    }
+    queue_recv.push_msg(msg);
 }
 
 /*
@@ -29,6 +58,8 @@ void MyTcpSocket::errorDetect(QAbstractSocket::SocketError error)
  */
 void MyTcpSocket::run()
 {
+    qDebug() << "send data" << QThread::currentThreadId();
+    m_isCanRun = true; //标记可以运行
     quint64 bytestowrite = 0;
     //构造消息头
     sendbuf[bytestowrite++] = '$';
@@ -40,9 +71,14 @@ void MyTcpSocket::run()
     */
     for(;;)
     {
+        {
+            QMutexLocker locker(&m_lock);
+            if(m_isCanRun == false) return; //在每次循环判断是否可以运行，如果不行就退出循环
+        }
         bytestowrite = 1;
         //构造消息体
         MESG * send = queue_send.pop_msg();
+        if(send == NULL) continue;
         //消息类型
         qToBigEndian<quint16>(send->msg_type, sendbuf + bytestowrite);
         bytestowrite += 2;
@@ -60,6 +96,7 @@ void MyTcpSocket::run()
         }
         else if(send->msg_type == IMG_SEND)
         {
+            qDebug() << "send img";
             //发送数据大小(多出来的2字节是图片类型, 宽度，高度)
             qToBigEndian<quint32>(send->len + 2 + 2 + 2, sendbuf + bytestowrite);
             bytestowrite += 4;
@@ -112,7 +149,6 @@ void MyTcpSocket::run()
 }
 
 
-
 qint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
 {
     quint64 hastoread = n;
@@ -137,6 +173,7 @@ qint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
 
 void MyTcpSocket::recvFromSocket()
 {
+    qDebug() << "recv data socket" <<QThread::currentThreadId();
     /*
     *$_msgtype_ip_size_data_#
     *
@@ -209,7 +246,7 @@ void MyTcpSocket::recvFromSocket()
                     memcpy(msg->data, &c, datalen_back);
                     msg->len = datalen_back;
                     queue_recv.push_msg(msg);
-
+                    qDebug() << "JOIN_MEETING_RESPONSE";
                 }
             }
         }
@@ -289,11 +326,9 @@ void MyTcpSocket::recvFromSocket()
     }
 }
 
+
 MyTcpSocket::~MyTcpSocket()
 {
-    disconnect(_socktcp, SIGNAL(readyRead()), this, SLOT(recvFromSocket()));
-    disconnectFromHost();
-
     delete sendbuf;
     delete _sockThread;
 }
@@ -318,14 +353,20 @@ QString MyTcpSocket::errorString()
 
 void MyTcpSocket::disconnectFromHost()
 {
-    if(this->isRunning()) // read
+    //write
+    if(this->isRunning())
     {
-        this->quit();
+        QMutexLocker locker(&m_lock);
+        m_isCanRun = false;
+//        this->wait();
     }
-    if(_sockThread->isRunning()) //write
+
+    if(_sockThread->isRunning()) //read
     {
         _sockThread->quit();
+        _sockThread->wait();
     }
+
     if(_socktcp->isOpen()) _socktcp->close();
     //清空 发送 队列，清空接受队列
     queue_send.clear();

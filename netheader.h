@@ -9,6 +9,10 @@
 #ifndef MB
 #define MB 1024*1024
 #endif
+
+#ifndef WAITSECONDS
+#define WAITSECONDS 2
+#endif
 enum MSG_TYPE
 {
     IMG_SEND = 0,
@@ -25,6 +29,8 @@ enum MSG_TYPE
     PARTNER_EXIT = 21,
     PARTNER_JOIN = 22,
     JOIN_MEETING_RESPONSE = 23,
+    RemoteHostClosedError = 24,
+    OtherNetError = 25
 };
 Q_DECLARE_METATYPE(MSG_TYPE);
 
@@ -57,7 +63,7 @@ public:
         }
         send_queue.push_back(msg);
         send_queueLock.unlock();
-        send_queueCond.wakeAll();
+        send_queueCond.wakeOne();
     }
 
     MESG* pop_msg()
@@ -65,12 +71,17 @@ public:
         send_queueLock.lock();
         while(send_queue.size() == 0)
         {
-            send_queueCond.wait(&send_queueLock);
+            bool f = send_queueCond.wait(&send_queueLock, WAITSECONDS * 1000);
+            if(f == false)
+            {
+                send_queueLock.unlock();
+                return NULL;
+            }
         }
         MESG * send = send_queue.front();
         send_queue.pop_front();
         send_queueLock.unlock();
-        send_queueCond.wakeAll();
+        send_queueCond.wakeOne();
         return send;
     }
 
@@ -98,7 +109,7 @@ public:
         }
         recv_queue.push_back(msg);
         recv_queueLock.unlock();
-        recv_queueCond.wakeAll();
+        recv_queueCond.wakeOne();
     }
 
     MESG* pop_msg()
@@ -106,12 +117,17 @@ public:
         recv_queueLock.lock();
         while(recv_queue.size() == 0)
         {
-            recv_queueCond.wait(&recv_queueLock);
+            bool f = recv_queueCond.wait(&recv_queueLock, WAITSECONDS * 1000);
+            if(f == false)
+            {
+                recv_queueLock.unlock();
+                return NULL;
+            }
         }
         MESG * send = recv_queue.front();
         recv_queue.pop_front();
         recv_queueLock.unlock();
-        recv_queueCond.wakeAll();
+        recv_queueCond.wakeOne();
         return send;
     }
 

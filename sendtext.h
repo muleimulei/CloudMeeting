@@ -27,11 +27,14 @@ private:
     QMutex textqueue_lock; //队列锁
     QWaitCondition queue_waitCond;
     void run() override;
+    QMutex m_lock;
+    bool m_isCanRun;
 public:
-    SendText();
+    SendText(QObject *par = NULL);
     ~SendText();
-private slots:
+public slots:
     void push_Text(MSG_TYPE, QString str = "");
+    void stopImmediately();
 };
 
 #endif // SENDTEXT_H

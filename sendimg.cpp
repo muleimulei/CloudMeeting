@@ -5,7 +5,7 @@
 
 extern QUEUE_SEND queue_send;
 
-SendImg::SendImg()
+SendImg::SendImg(QObject *par):QThread(par)
 {
 
 }
@@ -13,8 +13,17 @@ SendImg::SendImg()
 //消费线程
 void SendImg::run()
 {
+    m_isCanRun = true;
     for(;;)
     {
+        {
+            QMutexLocker locker(&m_lock);
+            if(!m_isCanRun)//在每次循环判断是否可以运行，如果不行就退出循环
+            {
+                return;
+            }
+        }
+
         queue_lock.lock(); //加锁
 
         while(imgqueue.size() == 0)
@@ -65,10 +74,15 @@ void SendImg::ImageCapture(QImage img)
     pushToQueue(img);
 }
 
-
-
 void SendImg::clearImgQueue()
 {
     qDebug() << "清空视频队列";
     imgqueue.clear();
+}
+
+
+void SendImg::stopImmediately()
+{
+    QMutexLocker locker(&m_lock);
+    m_isCanRun = false;
 }

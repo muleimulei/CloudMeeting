@@ -3,19 +3,21 @@
 
 #include <QThread>
 #include <QTcpSocket>
-
+#include <QMutex>
 
 #ifndef MB
 #define MB (1024 * 1024)
 #endif
 
 typedef unsigned char uchar;
+
+
 class MyTcpSocket: public QThread
 {
     Q_OBJECT
 public:
     ~MyTcpSocket();
-    MyTcpSocket();
+    MyTcpSocket(QObject *par=NULL);
     bool connectToServer(QString, QString, QIODevice::OpenModeFlag);
     QString errorString();
     void disconnectFromHost();
@@ -26,11 +28,15 @@ private:
     QTcpSocket *_socktcp;
     QThread *_sockThread;
     uchar *sendbuf;
+
+    QMutex m_lock;
+    volatile bool m_isCanRun;
 private slots:
-    void errorDetect(QAbstractSocket::SocketError);
+
 public slots:
     void recvFromSocket();
-
+    void stopImmediately();
+    void errorDetect(QAbstractSocket::SocketError error);
 signals:
     void socketerror(QAbstractSocket::SocketError);
 };
