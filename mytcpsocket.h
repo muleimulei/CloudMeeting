@@ -28,6 +28,7 @@ private:
     QTcpSocket *_socktcp;
     QThread *_sockThread;
     uchar *sendbuf;
+    uchar* recvbuf;
 
     QMutex m_lock;
     volatile bool m_isCanRun;

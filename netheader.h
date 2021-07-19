@@ -29,8 +29,9 @@ enum MSG_TYPE
     PARTNER_EXIT = 21,
     PARTNER_JOIN = 22,
     JOIN_MEETING_RESPONSE = 23,
-    RemoteHostClosedError = 24,
-    OtherNetError = 25
+    PARTNER_JOIN2 = 24,
+    RemoteHostClosedError = 40,
+    OtherNetError = 41
 };
 Q_DECLARE_METATYPE(MSG_TYPE);
 

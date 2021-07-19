@@ -20,7 +20,7 @@ Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
 {
-    qDebug() << "main: " <<QThread::currentThreadId();
+    qDebug() << "main: " <<QThread::currentThread();
     qRegisterMetaType<MSG_TYPE>();
     //创建TCPsocket
 
@@ -67,7 +67,7 @@ Widget::Widget(QWidget *parent)
     _textThread->start(); // 加入线程
     _sendText->start(); // 发送
 
-    connect(this, SIGNAL(PushText(MSG_TYPE, QString)), _sendText, SLOT(push_Text(MSG_TYPE, QString)), Qt::QueuedConnection);
+    connect(this, SIGNAL(PushText(MSG_TYPE, QString)), _sendText, SLOT(push_Text(MSG_TYPE, QString)));
     //-----------------------------------------------------------
 
     //配置摄像头
@@ -94,6 +94,8 @@ Widget::Widget(QWidget *parent)
     //预览窗口重定向在MyVideoSurface
     _camera->setViewfinder(_myvideosurface);
     _camera->setCaptureMode(QCamera::CaptureStillImage);
+
+
 
     //设置滚动条
     ui->scrollArea->verticalScrollBar()->setStyleSheet("QScrollBar:vertical"
@@ -159,10 +161,10 @@ void Widget::cameraImageCapture(QVideoFrame frame)
     {
         QImage videoImg = QImage(frame.bits(), frame.width(), frame.height(), QVideoFrame::imageFormatFromPixelFormat(frame.pixelFormat()));
 
-        QMatrix matrix;
+        QTransform matrix;
         matrix.rotate(180.0);
 
-        QImage img =  videoImg.transformed(matrix);
+        QImage img =  videoImg.transformed(matrix, Qt::FastTransformation);
 
         if(partner.size() > 1)
         {
@@ -280,8 +282,11 @@ void Widget::on_exitmeetBtn_clicked()
 
     //关闭socket
     _mytcpSocket->disconnectFromHost();
+    _mytcpSocket->wait();
 
-    ui->outlog->setText(QString("已退出会议"));
+    ui->outlog->setText(tr("已退出会议"));
+
+
     ui->connServer->setDisabled(false);
     ui->groupBox->setTitle(QString("副屏幕"));
 
@@ -380,7 +385,23 @@ void Widget::cameraError(QCamera::Error)
 
 void Widget::datasolve(MESG *msg)
 {
-//    qDebug() << "处理数据:" << QThread::currentThreadId();
+//    if(msg == NULL)
+//    {
+//        qDebug() << "fsdfsd";
+//        return;
+//    }
+//    qDebug() << msg->msg_type << "   处理数据:" << QThread::currentThread() ;
+//    if(msg->data)
+//    {
+//        free(msg->data);
+//        msg->data = NULL;
+//    }
+//    if(msg)
+//    {
+//        free(msg);
+//        msg = NULL;
+//    }
+//    return;
 //    qDebug() << msg;
     if(msg->msg_type == CREATE_MEETING_RESPONSE)
     {
@@ -389,7 +410,7 @@ void Widget::datasolve(MESG *msg)
 
         if(roomno != 0)
         {
-            QMessageBox::information(this, "Room No", QString("房间号：%1").arg(roomno), QMessageBox::Yes, QMessageBox::Yes);
+            QMessageBox::information(NULL, "Room No", QString("房间号：%1").arg(roomno), QMessageBox::Yes, QMessageBox::Yes);
 
             ui->groupBox->setTitle(QString("房间号: %1").arg(roomno));
             _createmeet = true;
@@ -409,7 +430,41 @@ void Widget::datasolve(MESG *msg)
         else
         {
             _createmeet = false;
-            QMessageBox::information(this, "Room Information", QString("无可用房间"), QMessageBox::Yes, QMessageBox::Yes);
+            QMessageBox::information(NULL, "Room Information", QString("无可用房间"), QMessageBox::Yes, QMessageBox::Yes);
+            ui->createmeetBtn->setDisabled(false);
+        }
+    }
+    else if(msg->msg_type == JOIN_MEETING_RESPONSE)
+    {
+        char c;
+        memcpy(&c, msg->data, msg->len);
+        if(c == 0)
+        {
+            QMessageBox::information(NULL, "Meeting Error", tr("会议不存在") , QMessageBox::Yes, QMessageBox::Yes);
+            ui->exitmeetBtn->setDisabled(true);
+            ui->openAudio->setDisabled(true);
+            ui->openVedio->setDisabled(true);
+            ui->joinmeetBtn->setDisabled(false);
+            ui->connServer->setDisabled(true);
+            _joinmeet = false;
+            qDebug() << "over";
+        }
+        else if(c == 1)
+        {
+            QMessageBox::warning(NULL, "Meeting information", "加入成功" , QMessageBox::Yes, QMessageBox::Yes);
+            //添加用户自己
+            addPartner(_mytcpSocket->getlocalip());
+            mainip = _mytcpSocket->getlocalip();
+            ui->groupBox_2->setTitle(QHostAddress(mainip).toString());
+            ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
+            ui->joinmeetBtn->setDisabled(true);
+            ui->exitmeetBtn->setDisabled(false);
+            ui->createmeetBtn->setDisabled(true);
+            _joinmeet = true;
+        }
+        else if(c == 2)
+        {
+            QMessageBox::warning(NULL, "Meeting information", "成员已满，无法加入" , QMessageBox::Yes, QMessageBox::Yes);
         }
     }
     else if(msg->msg_type == IMG_RECV)
@@ -433,34 +488,7 @@ void Widget::datasolve(MESG *msg)
             ui->mainshow_label->setPixmap(QPixmap::fromImage(img).scaled(ui->mainshow_label->size()));
         }
     }
-    else if(msg->msg_type == JOIN_MEETING_RESPONSE)
-    {
-        char c;
-        memcpy(&c, msg->data, 1);
-        qDebug() << c;
-        if(c == 0)
-        {
-            QMessageBox::warning(this, "Meeting Error", "会议不存在" , QMessageBox::Yes, QMessageBox::Yes);
-            qDebug() << "over 1" <<endl;
-        }
-        else if(c == 1)
-        {
-            QMessageBox::warning(this, "Meeting information", "加入成功" , QMessageBox::Yes, QMessageBox::Yes);
-            //添加用户自己
-            addPartner(_mytcpSocket->getlocalip());
-            mainip = _mytcpSocket->getlocalip();
-            ui->groupBox_2->setTitle(QHostAddress(mainip).toString());
-            ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
-            ui->joinmeetBtn->setDisabled(true);
-            ui->exitmeetBtn->setDisabled(false);
-            ui->createmeetBtn->setDisabled(true);
-            _joinmeet = true;
-        }
-        else if(c == 2)
-        {
-            QMessageBox::warning(this, "Meeting information", "成员已满，无法加入" , QMessageBox::Yes, QMessageBox::Yes);
-        }
-    }
+
     else if(msg->msg_type == PARTNER_JOIN)
     {
         Partner* p = addPartner(msg->ip);
@@ -476,8 +504,9 @@ void Widget::datasolve(MESG *msg)
     }
     else if(msg->msg_type == RemoteHostClosedError)
     {
-        if(_createmeet || _joinmeet) QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
+        if(_createmeet || _joinmeet) QMessageBox::warning(NULL, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
         _mytcpSocket->disconnectFromHost();
+        _mytcpSocket->wait();
         ui->outlog->setText(QString("关闭与服务器的连接"));
         ui->createmeetBtn->setDisabled(true);
         ui->exitmeetBtn->setDisabled(true);
@@ -489,8 +518,9 @@ void Widget::datasolve(MESG *msg)
     }
     else if(msg->msg_type == OtherNetError)
     {
-        QMessageBox::warning(this, "Network Error", "网络异常" , QMessageBox::Yes, QMessageBox::Yes);
+        QMessageBox::warning(NULL, "Network Error", "网络异常" , QMessageBox::Yes, QMessageBox::Yes);
         _mytcpSocket->disconnectFromHost();
+        _mytcpSocket->wait();
         ui->outlog->setText(QString("网络异常......"));
         clearPartner();
     }
@@ -523,15 +553,17 @@ void Widget::removePartner(quint32 ip)
         disconnect(p, SIGNAL(sendip(quint32)), this, SLOT(recvip(quint32)));
         ui->verticalLayout_3->removeWidget(p);
         delete p;
+        partner.remove(ip);
     }
-    partner.remove(ip);
+
 }
 
 void Widget::clearPartner()
 {
     ui->mainshow_label->setPixmap(QPixmap());
-    QMap<quint32, Partner *>::iterator beg = partner.begin(), end = partner.end();
-    while(beg != end)
+    if(partner.size() == 0) return;
+    QMap<quint32, Partner *>::iterator beg = partner.begin();
+    while(beg != partner.end())
     {
         removePartner(beg.key());
         beg++;
@@ -559,7 +591,6 @@ void Widget::on_joinmeetBtn_clicked()
     int pos = 0;
     if(roomvalidate.validate(roomNo, pos) != QValidator::Acceptable)
     {
-        qDebug() << pos;
         QMessageBox::warning(this, "RoomNo Error", "房间号不合法" , QMessageBox::Yes, QMessageBox::Yes);
     }
     else

@@ -27,7 +27,8 @@ void RecvSolve::run()
         }
         MESG * msg = queue_recv.pop_msg();
         if(msg == NULL) continue;
-        qDebug() << "取出队列:" << msg->msg_type;
+//        else free(msg);
+//        qDebug() << "取出队列:" << msg->msg_type;
         emit datarecv(msg);
     }
 }

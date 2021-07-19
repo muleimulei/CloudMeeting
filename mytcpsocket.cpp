@@ -29,6 +29,7 @@ MyTcpSocket::MyTcpSocket(QObject *par):QThread(par)
     this->moveToThread(_sockThread);
 
     sendbuf =(uchar *) malloc(2 * MB);
+    recvbuf = (uchar*)malloc(2 * MB);
     connect(_socktcp, SIGNAL(readyRead()), this, SLOT(recvFromSocket())); //接受数据
 
     //处理套接字错误
@@ -60,10 +61,6 @@ void MyTcpSocket::run()
 {
     qDebug() << "send data" << QThread::currentThreadId();
     m_isCanRun = true; //标记可以运行
-    quint64 bytestowrite = 0;
-    //构造消息头
-    sendbuf[bytestowrite++] = '$';
-
     /*
     *$_MSGType_IPV4_MSGSize_data_# //
     * 1 2 4 4 MSGSize 1
@@ -75,6 +72,9 @@ void MyTcpSocket::run()
             QMutexLocker locker(&m_lock);
             if(m_isCanRun == false) return; //在每次循环判断是否可以运行，如果不行就退出循环
         }
+        quint64 bytestowrite = 0;
+        //构造消息头
+        sendbuf[bytestowrite++] = '$';
         bytestowrite = 1;
         //构造消息体
         MESG * send = queue_send.pop_msg();
@@ -140,10 +140,14 @@ void MyTcpSocket::run()
 
         _socktcp->waitForBytesWritten();
 
+        if(send->data)
+        {
+            free(send->data);
+        }
         //free
         if(send)
         {
-            delete send;
+            free(send);
         }
     }
 }
@@ -173,80 +177,104 @@ qint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
 
 void MyTcpSocket::recvFromSocket()
 {
-    qDebug() << "recv data socket" <<QThread::currentThreadId();
+    qDebug() << "recv data socket" <<QThread::currentThread();
     /*
     *$_msgtype_ip_size_data_#
     *
     */
-    char *buf = (char *)malloc(2 * MB);
-    qint64 rlen = this->readn(buf, 2 * MB, 11); // 11 消息头长度
+    
+    qint64 rlen = this->readn((char *)recvbuf, 2 * MB, 11); // 11 消息头长度
     if(rlen < 0)
     {
-        free(buf);
-        buf = NULL;
+        qDebug() << "rlen < 0";
         return;
     }
     if(rlen < 11)
     {
         qDebug() << "data size < 11";
-        free(buf);
-        buf = NULL;
         return;
     }
 //    qDebug() << "data_len = " << rlen;
-    if(buf[0] == '$')
+    if(recvbuf[0] == '$')
     {
         MSG_TYPE msgtype, msgtype_back; //不知道为什么下面调用qFromBigEndian使局部变量会改变，所以多准备一个back变量
-        qFromBigEndian<quint16>(buf + 1, 2, &msgtype);
+        qFromBigEndian<quint16>(recvbuf + 1, 2, &msgtype);
         msgtype_back = msgtype;
-        qDebug() << "type "<<msgtype_back;
         if(msgtype == CREATE_MEETING_RESPONSE || msgtype == JOIN_MEETING_RESPONSE)
         {
             quint32 data_len=4, datalen_back;
 
-            qFromBigEndian<quint32>(buf + 7, 4, &data_len);
+            qFromBigEndian<quint32>(recvbuf + 7, 4, &data_len);
             datalen_back = data_len;
 
 
             //read data
-            rlen = this->readn(buf, 2 * MB, datalen_back + 1); // read data+#
+            rlen = this->readn((char *)recvbuf, 2 * MB, datalen_back + 1); // read data+#
             if(rlen < datalen_back + 1)
             {
                 qDebug() << "data size < data_len + 1";
-                free(buf);
                 return;
             }
-            else if(buf[rlen - 1] == '#')
+            else if(recvbuf[rlen - 1] == '#')
             {
                 if(msgtype_back == CREATE_MEETING_RESPONSE)
                 {
                     qint32 roomNo;
-                    qFromBigEndian<qint32>(buf, 4, &roomNo);
+                    qFromBigEndian<qint32>(recvbuf, 4, &roomNo);
 
                     //将消息加入到接收队列
     //                qDebug() << roomNo;
 
                     MESG *msg = ( MESG *)malloc(sizeof(MESG));
-                    memset(msg, 0, sizeof(sizeof (MESG)));
-                    msg->msg_type = msgtype_back;
-                    msg->data = (uchar *)malloc(datalen_back);
-                    memcpy(msg->data, &roomNo, datalen_back);
-                    msg->len = datalen_back;
-                    queue_recv.push_msg(msg);
+                    if (msg == NULL)
+                    {
+                        qDebug() << __LINE__ << " malloc failed";
+                    }
+                    else
+                    {
+						memset(msg, 0, sizeof(sizeof(MESG)));
+						msg->msg_type = msgtype_back;
+						msg->data = (uchar*)malloc(datalen_back);
+                        if (msg->data == NULL)
+                        {
+                            qDebug() << __LINE__ << " malloc failed";
+                        }
+                        else
+                        {
+							memcpy(msg->data, &roomNo, datalen_back);
+							msg->len = datalen_back;
+							queue_recv.push_msg(msg);
+                        }
+						
+                    }
                 }
                 else if(msgtype_back == JOIN_MEETING_RESPONSE)
                 {
                     char c;
-                    memcpy(&c, buf, datalen_back);
+                    memcpy(&c, recvbuf, datalen_back);
 
                     MESG *msg = ( MESG *)malloc(sizeof(MESG));
-                    memset(msg, 0, sizeof(sizeof (MESG)));
-                    msg->msg_type = msgtype_back;
-                    msg->data = (uchar *)malloc(datalen_back);
-                    memcpy(msg->data, &c, datalen_back);
-                    msg->len = datalen_back;
-                    queue_recv.push_msg(msg);
-                    qDebug() << "JOIN_MEETING_RESPONSE";
+
+                    if (msg == NULL)
+                    {
+                        qDebug() << __LINE__ << " malloc failed";
+                    }
+                    else
+                    {
+						memset(msg, 0, sizeof(sizeof(MESG)));
+						msg->msg_type = msgtype_back;
+						msg->data = (uchar*)malloc(datalen_back);
+                        if (msg->data == NULL)
+                        {
+                            qDebug() << __LINE__ << " malloc failed";
+                        }
+                        else
+                        {
+							memcpy(msg->data, &c, datalen_back);
+							msg->len = datalen_back;
+							queue_recv.push_msg(msg);
+                        }
+                    }
                 }
             }
         }
@@ -254,59 +282,79 @@ void MyTcpSocket::recvFromSocket()
         {
             //read ipv4
             quint32 ip, ip_back;
-            qFromBigEndian<quint32>(buf + 3, 4, &ip);
+            qFromBigEndian<quint32>(recvbuf + 3, 4, &ip);
             ip_back = ip;
 
             //read datalen
             quint32 data_len, datalen_back;
-            qFromBigEndian<quint32>(buf + 7, 4, &data_len);
+            qFromBigEndian<quint32>(recvbuf + 7, 4, &data_len);
             datalen_back = data_len;
 
             //read data
-            rlen = this->readn(buf, 2 * MB, data_len + 1); // read data+#
+            rlen = this->readn((char *)recvbuf, 2 * MB, data_len + 1); // read data+#
             if(rlen < data_len + 1)
             {
                 qDebug() << "data size < data_len + 1";
-                free(buf);
                 return;
             }
-            else if(buf[rlen - 1] == '#')
+            else if(recvbuf[rlen - 1] == '#')
             {
                 if(msgtype_back == IMG_RECV )
                 {
                     QImage::Format imageformat, imageformat_back;
-                    qFromBigEndian<qint32>(buf, 2, &imageformat);
+                    qFromBigEndian<qint32>(recvbuf, 2, &imageformat);
                     imageformat_back = imageformat;
 
                     quint32 width, width_back, height, height_back;
-                    qFromBigEndian<quint32>(buf + 2, 4, &width);
+                    qFromBigEndian<quint32>(recvbuf + 2, 4, &width);
                     width_back = width;
 
-                    qFromBigEndian<quint32>(buf + 6, 4, &height);
+                    qFromBigEndian<quint32>(recvbuf + 6, 4, &height);
                     height_back = height;
 
                     //将消息加入到接收队列
     //                qDebug() << roomNo;
 
                     MESG *msg = ( MESG *)malloc(sizeof(MESG));
-                    memset(msg, 0, sizeof(sizeof (MESG)));
-                    msg->msg_type = msgtype_back;
-                    msg->format = imageformat_back;
-                    msg->width = width_back;
-                    msg->height = height_back;
-                    msg->data = (uchar *)malloc(datalen_back - 10); // 10 = format + width + width
-                    memcpy(msg->data, buf + 10, datalen_back - 10);
-                    msg->len = datalen_back - 10;
-                    queue_recv.push_msg(msg);
+                    if (msg == NULL)
+                    {
+                        qDebug() << __LINE__ << " malloc failed";
+                    }
+                    else
+                    {
+						memset(msg, 0, sizeof(sizeof(MESG)));
+						msg->msg_type = msgtype_back;
+						msg->format = imageformat_back;
+						msg->width = width_back;
+						msg->height = height_back;
+						msg->data = (uchar*)malloc(datalen_back - 10); // 10 = format + width + width
+                        if (msg->data == NULL)
+                        {
+                            qDebug() << __LINE__ << " malloc failed";
+                        }
+                        else
+                        {
+							memcpy(msg->data, recvbuf + 10, datalen_back - 10);
+							msg->len = datalen_back - 10;
+							queue_recv.push_msg(msg);
+                        }
+						
+                    }
                 }
                 else if(msgtype_back == PARTNER_JOIN || msgtype_back == PARTNER_EXIT)
                 {
                     MESG *msg = ( MESG *)malloc(sizeof(MESG));
-                    memset(msg, 0, sizeof(sizeof (MESG)));
-
-                    msg->msg_type = msgtype_back;
-                    msg->ip = ip_back;
-                    queue_recv.push_msg(msg);
+                    if (msg == NULL)
+                    {
+                        qDebug() << __LINE__ <<" malloc failed";
+                    }
+                    else
+                    {
+						memset(msg, 0, sizeof(sizeof(MESG)));
+						msg->msg_type = msgtype_back;
+						msg->ip = ip_back;
+						queue_recv.push_msg(msg);
+                    }
                 }
             }
         }
@@ -314,15 +362,6 @@ void MyTcpSocket::recvFromSocket()
     else
     {
         qDebug() << "data format error";
-        free(buf);
-        buf = NULL;
-    }
-
-    //free
-    if(buf)
-    {
-        free(buf);
-        buf = NULL;
     }
 }
 
@@ -358,7 +397,6 @@ void MyTcpSocket::disconnectFromHost()
     {
         QMutexLocker locker(&m_lock);
         m_isCanRun = false;
-//        this->wait();
     }
 
     if(_sockThread->isRunning()) //read

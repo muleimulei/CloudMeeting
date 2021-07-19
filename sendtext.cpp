@@ -58,25 +58,43 @@ void SendText::run()
         queue_waitCond.wakeOne(); //唤醒添加线程
 
         //构造消息体
-        MESG * send = new MESG();
-
-        if(text.type == CREATE_MEETING)
+        MESG* send = (MESG*)malloc(sizeof(MESG));
+        if (send == NULL)
         {
-            send->len = 0;
-            send->data = NULL;
-            send->msg_type = CREATE_MEETING;
+            qDebug() << __FILE__  <<__LINE__ << "malloc fail";
+            continue;
         }
-        else if(text.type == JOIN_MEETING)
+        else
         {
-            send->msg_type = JOIN_MEETING;
-            send->len = 4; //房间号占4个字节
-            send->data = (uchar *)malloc(send->len);
-            quint32 roomno = text.str.toUInt();
-            memcpy(send->data, &roomno, sizeof (roomno));
-        }
+			memset(send, 0, sizeof(MESG));
 
-        //加入发送队列
-        queue_send.push_msg(send);
+			if (text.type == CREATE_MEETING)
+			{
+				send->len = 0;
+				send->data = NULL;
+				send->msg_type = CREATE_MEETING;
+			}
+			else if (text.type == JOIN_MEETING)
+			{
+				send->msg_type = JOIN_MEETING;
+				send->len = 4; //房间号占4个字节
+				send->data = (uchar*)malloc(send->len);
+                if (send->data == NULL)
+                {
+                    qDebug() << __FILE__ << __LINE__ << "malloc fail";
+                    continue;
+                }
+                else
+                {
+					quint32 roomno = text.str.toUInt();
+					memcpy(send->data, &roomno, sizeof(roomno));
+                }
+			}
+
+			//加入发送队列
+			queue_send.push_msg(send);
+        }
+        
     }
 }
 void SendText::stopImmediately()
