@@ -73,12 +73,14 @@ void SendText::run()
 				send->len = 0;
 				send->data = NULL;
 				send->msg_type = CREATE_MEETING;
+                queue_send.push_msg(send);
 			}
 			else if (text.type == JOIN_MEETING)
 			{
 				send->msg_type = JOIN_MEETING;
 				send->len = 4; //房间号占4个字节
-				send->data = (uchar*)malloc(send->len);
+                send->data = (uchar*)malloc(send->len + 10);
+                
                 if (send->data == NULL)
                 {
                     qDebug() << __FILE__ << __LINE__ << "malloc fail";
@@ -86,13 +88,14 @@ void SendText::run()
                 }
                 else
                 {
+                    memset(send->data, 0, send->len + 10);
 					quint32 roomno = text.str.toUInt();
 					memcpy(send->data, &roomno, sizeof(roomno));
+					//加入发送队列
+
+					queue_send.push_msg(send);
                 }
 			}
-
-			//加入发送队列
-			queue_send.push_msg(send);
         }
         
     }

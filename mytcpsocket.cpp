@@ -72,13 +72,16 @@ void MyTcpSocket::run()
             QMutexLocker locker(&m_lock);
             if(m_isCanRun == false) return; //在每次循环判断是否可以运行，如果不行就退出循环
         }
-        quint64 bytestowrite = 0;
-        //构造消息头
-        sendbuf[bytestowrite++] = '$';
-        bytestowrite = 1;
+        
         //构造消息体
         MESG * send = queue_send.pop_msg();
         if(send == NULL) continue;
+      
+
+		quint64 bytestowrite = 0;
+		//构造消息头
+		sendbuf[bytestowrite++] = '$';
+
         //消息类型
         qToBigEndian<quint16>(send->msg_type, sendbuf + bytestowrite);
         bytestowrite += 2;
@@ -111,7 +114,9 @@ void MyTcpSocket::run()
         {
             qToBigEndian<quint32>(send->len, sendbuf + bytestowrite);
             bytestowrite += 4;
-            qToBigEndian<quint32>(send->data, 4,  send->data);
+            uint32_t room;
+            memcpy(&room, send->data, send->len);
+            qToBigEndian<quint32>(room, send->data);
         }
 
         //将数据拷入sendbuf
@@ -222,10 +227,8 @@ void MyTcpSocket::recvFromSocket()
                     qint32 roomNo;
                     qFromBigEndian<qint32>(recvbuf, 4, &roomNo);
 
-                    //将消息加入到接收队列
-    //                qDebug() << roomNo;
-
                     MESG *msg = ( MESG *)malloc(sizeof(MESG));
+                    
                     if (msg == NULL)
                     {
                         qDebug() << __LINE__ << " malloc failed";
@@ -234,13 +237,14 @@ void MyTcpSocket::recvFromSocket()
                     {
 						memset(msg, 0, sizeof(sizeof(MESG)));
 						msg->msg_type = msgtype_back;
-						msg->data = (uchar*)malloc(datalen_back);
+						msg->data = (uchar*)malloc(datalen_back + 10);
                         if (msg->data == NULL)
                         {
                             qDebug() << __LINE__ << " malloc failed";
                         }
                         else
                         {
+                            memset(msg->data, 0, datalen_back + 10);
 							memcpy(msg->data, &roomNo, datalen_back);
 							msg->len = datalen_back;
 							queue_recv.push_msg(msg);
@@ -263,13 +267,14 @@ void MyTcpSocket::recvFromSocket()
                     {
 						memset(msg, 0, sizeof(sizeof(MESG)));
 						msg->msg_type = msgtype_back;
-						msg->data = (uchar*)malloc(datalen_back);
+						msg->data = (uchar*)malloc(datalen_back + 10);
                         if (msg->data == NULL)
                         {
                             qDebug() << __LINE__ << " malloc failed";
                         }
                         else
                         {
+                            memset(msg->data, 0, datalen_back + 10);
 							memcpy(msg->data, &c, datalen_back);
 							msg->len = datalen_back;
 							queue_recv.push_msg(msg);
