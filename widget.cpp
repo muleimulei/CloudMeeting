@@ -190,7 +190,7 @@ Widget::~Widget()
     //终止底层发送与接收线程
 
     if(_mytcpSocket->isRunning())
-    {
+    { 
         _mytcpSocket->stopImmediately();
         _mytcpSocket->wait();
     }
@@ -465,7 +465,7 @@ void Widget::datasolve(MESG *msg)
     else if(msg->msg_type == PARTNER_JOIN)
     {
         Partner* p = addPartner(msg->ip);
-        p->setpic(QImage(":/myImage/1.jpg"));
+        if(p) p->setpic(QImage(":/myImage/1.jpg"));
     }
     else if(msg->msg_type == PARTNER_EXIT)
     {
@@ -477,7 +477,15 @@ void Widget::datasolve(MESG *msg)
     }
     else if (msg->msg_type == PARTNER_JOIN2)
     {
-
+        uint32_t ip;
+        int other = msg->len / sizeof(uint32_t), pos = 0;
+        for (int i = 0; i < other; i++)
+        {
+            memcpy_s(&ip, sizeof(uint32_t), msg->data + pos , sizeof(uint32_t));
+            pos += sizeof(uint32_t);
+			Partner* p = addPartner(ip);
+			if (p) p->setpic(QImage(":/myImage/1.jpg"));
+        }
     }
     else if(msg->msg_type == RemoteHostClosedError)
     {
@@ -514,7 +522,7 @@ void Widget::datasolve(MESG *msg)
 
 Partner* Widget::addPartner(quint32 ip)
 {
-    //if (partner.contains(ip)) return NULL;
+    if (partner.contains(ip)) return NULL;
     Partner *p = new Partner(ui->scrollAreaWidgetContents ,ip);
     if (p == NULL)
     {
@@ -525,10 +533,9 @@ Partner* Widget::addPartner(quint32 ip)
     {
 		connect(p, SIGNAL(sendip(quint32)), this, SLOT(recvip(quint32)));
 		partner.insert(ip, p);
-		ui->verticalLayout_3->addWidget(p);
+		ui->verticalLayout_3->addWidget(p, 1);
 		return p;
     }
-    
 }
 
 void Widget::removePartner(quint32 ip)
@@ -562,6 +569,16 @@ void Widget::clearPartner()
 
 void Widget::recvip(quint32 ip)
 {
+    if (partner.contains(mainip))
+    {
+        Partner* p = partner[mainip];
+        p->setStyleSheet("border-width: 1px; border-style: solid; border-color:rgba(0, 0 , 255, 0.7)");
+    }
+	if (partner.contains(ip))
+	{
+		Partner* p = partner[ip];
+		p->setStyleSheet("border-width: 1px; border-style: solid; border-color:rgba(255, 0 , 0, 0.7)");
+	}
     mainip = ip;
     ui->groupBox_2->setTitle(QHostAddress(mainip).toString());
     qDebug() << ip;

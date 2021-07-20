@@ -12,7 +12,7 @@ Partner::Partner(QWidget *parent, quint32 p):QLabel(parent)
     this->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(w-10, w-10)));
     this->setFrameShape(QFrame::Box);
 
-    this->setStyleSheet("border-width: 1px; border-style: solid; border-color:rgba(255, 0 , 0, 0.7)");
+    this->setStyleSheet("border-width: 1px; border-style: solid; border-color:rgba(0, 0 , 255, 0.7)");
 //    this->setToolTipDuration(5);
 
     this->setToolTip(QHostAddress(ip).toString());

@@ -16,42 +16,49 @@ void SendImg::run()
     m_isCanRun = true;
     for(;;)
     {
-        {
-            QMutexLocker locker(&m_lock);
-            if(!m_isCanRun)//在每次循环判断是否可以运行，如果不行就退出循环
-            {
-                return;
-            }
-        }
-
         queue_lock.lock(); //加锁
 
         while(imgqueue.size() == 0)
         {
             //qDebug() << this << QThread::currentThreadId();
-            queue_waitCond.wait(&queue_lock);
+            bool f = queue_waitCond.wait(&queue_lock, WAITSECONDS * 1000);
+			if (f == false) //timeout
+			{
+				QMutexLocker locker(&m_lock);
+				if (m_isCanRun == false)
+				{
+                    queue_lock.unlock();
+					return;
+				}
+			}
         }
 
         QImage img = imgqueue.front();
 //        qDebug() << "取出队列:" << QThread::currentThreadId();
         imgqueue.pop_front();
         queue_lock.unlock();//解锁
-        queue_waitCond.wakeAll(); //唤醒添加线程
+        queue_waitCond.wakeOne(); //唤醒添加线程
 
 
         //构造消息体
-        MESG * imgsend = new MESG();
-        imgsend->msg_type = IMG_SEND;
-        imgsend->len = img.sizeInBytes();
-        imgsend->data = new uchar[imgsend->len];
-        imgsend->format = img.format();
-        imgsend->width = img.width();
-        imgsend->height = img.height();
-//        memcpy_s(imgsend->data, imgsend->len, img.bits(), imgsend->len);
-        memcpy(imgsend->data, img.bits(), imgsend->len);
-
-        //加入发送队列
-        queue_send.push_msg(imgsend);
+        MESG* imgsend = (MESG*)malloc(sizeof(MESG));
+        if (imgsend == NULL)
+        {
+            qDebug() << "malloc imgsend fail";
+        }
+        else
+        {
+            memset(imgsend, 0, sizeof(MESG));
+			imgsend->msg_type = IMG_SEND;
+			imgsend->len = img.sizeInBytes();
+			imgsend->data = new uchar[imgsend->len];
+			imgsend->format = img.format();
+			imgsend->width = img.width();
+			imgsend->height = img.height();
+			memcpy_s(imgsend->data, imgsend->len, img.bits(), imgsend->len);
+			//加入发送队列
+			queue_send.push_msg(imgsend);
+        }
     }
 }
 
@@ -66,7 +73,7 @@ void SendImg::pushToQueue(QImage img)
     }
     imgqueue.push_back(img);
     queue_lock.unlock();
-    queue_waitCond.wakeAll();
+    queue_waitCond.wakeOne();
 }
 
 void SendImg::ImageCapture(QImage img)
@@ -77,6 +84,7 @@ void SendImg::ImageCapture(QImage img)
 void SendImg::clearImgQueue()
 {
     qDebug() << "清空视频队列";
+    QMutexLocker locker(&queue_lock);
     imgqueue.clear();
 }
 

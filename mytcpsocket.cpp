@@ -42,16 +42,23 @@ void MyTcpSocket::errorDetect(QAbstractSocket::SocketError error)
 {
     qDebug() <<"Sock error" <<QThread::currentThreadId();
     MESG * msg = (MESG *) malloc(sizeof (MESG));
-    memset(msg, 0, sizeof (MESG));
-    if(error == QAbstractSocket::RemoteHostClosedError)
+    if (msg == NULL)
     {
-        msg->msg_type = RemoteHostClosedError;
+        qDebug() << "errdect malloc error";
     }
     else
     {
-        msg->msg_type = OtherNetError;
+        memset(msg, 0, sizeof(MESG));
+		if (error == QAbstractSocket::RemoteHostClosedError)
+		{
+			msg->msg_type = RemoteHostClosedError;
+		}
+		else
+		{
+			msg->msg_type = OtherNetError;
+		}
+		queue_recv.push_msg(msg);
     }
-    queue_recv.push_msg(msg);
 }
 
 /*
@@ -202,99 +209,16 @@ void MyTcpSocket::recvFromSocket()
 //    qDebug() << "data_len = " << rlen;
     if(recvbuf[0] == '$')
     {
-        MSG_TYPE msgtype, msgtype_back; //不知道为什么下面调用qFromBigEndian使局部变量会改变，所以多准备一个back变量
-        qFromBigEndian<quint16>(recvbuf + 1, 2, &msgtype);
-        msgtype_back = msgtype;
-        qDebug() << "recv data type: " << msgtype_back;
-        if(msgtype == CREATE_MEETING_RESPONSE || msgtype == JOIN_MEETING_RESPONSE)
+        MSG_TYPE msgtype;
+        uint16_t type;
+        qFromBigEndian<uint16_t>(recvbuf + 1, 2, &type);
+        msgtype = (MSG_TYPE)type;
+        qDebug() << "recv data type: " << msgtype;
+        if(msgtype == CREATE_MEETING_RESPONSE || msgtype == JOIN_MEETING_RESPONSE || msgtype == PARTNER_JOIN2)
         {
-            quint32 data_len=4, datalen_back;
+            quint32 data_len;
 
             qFromBigEndian<quint32>(recvbuf + 7, 4, &data_len);
-            datalen_back = data_len;
-
-
-            //read data
-            rlen = this->readn((char *)recvbuf, 2 * MB, datalen_back + 1); // read data+#
-            if(rlen < datalen_back + 1)
-            {
-                qDebug() << "data size < data_len + 1";
-                return;
-            }
-            else if(recvbuf[rlen - 1] == '#')
-            {
-                if(msgtype_back == CREATE_MEETING_RESPONSE)
-                {
-                    qint32 roomNo;
-                    qFromBigEndian<qint32>(recvbuf, 4, &roomNo);
-
-                    MESG *msg = ( MESG *)malloc(sizeof(MESG));
-                    
-                    if (msg == NULL)
-                    {
-                        qDebug() << __LINE__ << " malloc failed";
-                    }
-                    else
-                    {
-						memset(msg, 0, sizeof(sizeof(MESG)));
-						msg->msg_type = msgtype_back;
-						msg->data = (uchar*)malloc(datalen_back + 10);
-                        if (msg->data == NULL)
-                        {
-                            qDebug() << __LINE__ << " malloc failed";
-                        }
-                        else
-                        {
-                            memset(msg->data, 0, datalen_back + 10);
-							memcpy(msg->data, &roomNo, datalen_back);
-							msg->len = datalen_back;
-							queue_recv.push_msg(msg);
-                        }
-						
-                    }
-                }
-                else if(msgtype_back == JOIN_MEETING_RESPONSE)
-                {
-                    char c;
-                    memcpy(&c, recvbuf, datalen_back);
-
-                    MESG *msg = ( MESG *)malloc(sizeof(MESG));
-
-                    if (msg == NULL)
-                    {
-                        qDebug() << __LINE__ << " malloc failed";
-                    }
-                    else
-                    {
-						memset(msg, 0, sizeof(sizeof(MESG)));
-						msg->msg_type = msgtype_back;
-						msg->data = (uchar*)malloc(datalen_back + 10);
-                        if (msg->data == NULL)
-                        {
-                            qDebug() << __LINE__ << " malloc failed";
-                        }
-                        else
-                        {
-                            memset(msg->data, 0, datalen_back + 10);
-							memcpy(msg->data, &c, datalen_back);
-							msg->len = datalen_back;
-							queue_recv.push_msg(msg);
-                        }
-                    }
-                }
-            }
-        }
-        else if(msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT)
-        {
-            //read ipv4
-            quint32 ip, ip_back;
-            qFromBigEndian<quint32>(recvbuf + 3, 4, &ip);
-            ip_back = ip;
-
-            //read datalen
-            quint32 data_len, datalen_back;
-            qFromBigEndian<quint32>(recvbuf + 7, 4, &data_len);
-            datalen_back = data_len;
 
             //read data
             rlen = this->readn((char *)recvbuf, 2 * MB, data_len + 1); // read data+#
@@ -305,18 +229,133 @@ void MyTcpSocket::recvFromSocket()
             }
             else if(recvbuf[rlen - 1] == '#')
             {
-                if(msgtype_back == IMG_RECV )
+                if(msgtype == CREATE_MEETING_RESPONSE)
                 {
-                    QImage::Format imageformat, imageformat_back;
-                    qFromBigEndian<qint32>(recvbuf, 2, &imageformat);
-                    imageformat_back = imageformat;
+                    qint32 roomNo;
+                    qFromBigEndian<qint32>(recvbuf, 4, &roomNo);
 
-                    quint32 width, width_back, height, height_back;
+                    MESG *msg = ( MESG *)malloc(sizeof(MESG));
+                    
+                    if (msg == NULL)
+                    {
+                        qDebug() << __LINE__ << " CREATE_MEETING_RESPONSE malloc MESG failed";
+                    }
+                    else
+                    {
+						memset(msg, 0, sizeof(MESG));
+						msg->msg_type = msgtype;
+						msg->data = (uchar*)malloc(data_len + 10);
+                        if (msg->data == NULL)
+                        {
+                            free(msg);
+                            qDebug() << __LINE__ << "CREATE_MEETING_RESPONSE malloc MESG.data failed";
+                        }
+                        else
+                        {
+                            memset(msg->data, 0, data_len + 10);
+							memcpy(msg->data, &roomNo, data_len);
+							msg->len = data_len;
+							queue_recv.push_msg(msg);
+                        }
+						
+                    }
+                }
+                else if(msgtype == JOIN_MEETING_RESPONSE)
+                {
+                    char c;
+                    memcpy(&c, recvbuf, data_len);
+
+                    MESG *msg = ( MESG *)malloc(sizeof(MESG));
+
+                    if (msg == NULL)
+                    {
+                        qDebug() << __LINE__ << "JOIN_MEETING_RESPONSE malloc MESG failed";
+                    }
+                    else
+                    {
+						memset(msg, 0, sizeof(MESG));
+						msg->msg_type = msgtype;
+						msg->data = (uchar*)malloc(data_len + 10);
+                        if (msg->data == NULL)
+                        {
+                            free(msg);
+                            qDebug() << __LINE__ << "JOIN_MEETING_RESPONSE malloc MESG.data failed";
+                        }
+                        else
+                        {
+                            memset(msg->data, 0, data_len + 10);
+							memcpy(msg->data, &c, data_len);
+							msg->len = data_len;
+							queue_recv.push_msg(msg);
+                        }
+                    }
+                }
+                else if (msgtype == PARTNER_JOIN2)
+                {
+                    MESG* msg = (MESG*)malloc(sizeof(MESG));
+                    if (msg == NULL)
+                    {
+                        qDebug() << "PARTNER_JOIN2 malloc MESG error";
+                    }
+                    else
+                    {
+                        memset(msg, 0, sizeof(MESG));
+                        msg->msg_type = msgtype;
+                        msg->len = data_len;
+                        msg->data = (uchar*)malloc(data_len);
+                        if (msg->data == NULL)
+                        {
+                            free(msg);
+                            qDebug() << "PARTNER_JOIN2 malloc MESG.data error";
+                        }
+                        else
+                        {
+                            memset(msg->data, 0, data_len);
+                            uint32_t ip;
+                            int pos = 0;
+                            for (int i = 0; i < data_len / sizeof(uint32_t); i++)
+                            {
+                                qFromBigEndian<uint32_t>(recvbuf + pos, sizeof(uint32_t), &ip);
+                                memcpy_s(msg->data + pos, data_len - pos, &ip, sizeof(uint32_t));
+                                pos += sizeof(uint32_t);
+                            }
+                            queue_recv.push_msg(msg);
+                        }
+
+                    }
+                }
+            }
+        }
+        else if(msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT)
+        {
+            //read ipv4
+            quint32 ip;
+            qFromBigEndian<quint32>(recvbuf + 3, 4, &ip);
+
+            //read datalen
+            quint32 data_len;
+            qFromBigEndian<quint32>(recvbuf + 7, 4, &data_len);
+
+            //read data
+            rlen = this->readn((char *)recvbuf, 2 * MB, data_len + 1); // read data+#
+            if(rlen < data_len + 1)
+            {
+                qDebug() << "data size < data_len + 1";
+                return;
+            }
+            else if(recvbuf[rlen - 1] == '#')
+            {
+                if(msgtype == IMG_RECV)
+                {
+                    QImage::Format imageformat;
+                    uint16_t format;
+                    qFromBigEndian<uint16_t>(recvbuf, 2, &format);
+                    imageformat = (QImage::Format)format;
+
+                    quint32 width, height;
                     qFromBigEndian<quint32>(recvbuf + 2, 4, &width);
-                    width_back = width;
 
                     qFromBigEndian<quint32>(recvbuf + 6, 4, &height);
-                    height_back = height;
 
                     //将消息加入到接收队列
     //                qDebug() << roomNo;
@@ -328,26 +367,26 @@ void MyTcpSocket::recvFromSocket()
                     }
                     else
                     {
-						memset(msg, 0, sizeof(sizeof(MESG)));
-						msg->msg_type = msgtype_back;
-						msg->format = imageformat_back;
-						msg->width = width_back;
-						msg->height = height_back;
-						msg->data = (uchar*)malloc(datalen_back - 10); // 10 = format + width + width
+						memset(msg, 0, sizeof(MESG));
+						msg->msg_type = msgtype;
+						msg->format = imageformat;
+						msg->width = width;
+						msg->height = height;
+						msg->data = (uchar*)malloc(data_len - 10); // 10 = format + width + width
                         if (msg->data == NULL)
                         {
                             qDebug() << __LINE__ << " malloc failed";
                         }
                         else
                         {
-							memcpy(msg->data, recvbuf + 10, datalen_back - 10);
-							msg->len = datalen_back - 10;
+                            memset(msg->data, 0, data_len - 10);
+							memcpy(msg->data, recvbuf + 10, data_len - 10);
+							msg->len = data_len - 10;
 							queue_recv.push_msg(msg);
                         }
-						
                     }
                 }
-                else if(msgtype_back == PARTNER_JOIN || msgtype_back == PARTNER_EXIT)
+                else if(msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT)
                 {
                     MESG *msg = ( MESG *)malloc(sizeof(MESG));
                     if (msg == NULL)
@@ -356,9 +395,9 @@ void MyTcpSocket::recvFromSocket()
                     }
                     else
                     {
-						memset(msg, 0, sizeof(sizeof(MESG)));
-						msg->msg_type = msgtype_back;
-						msg->ip = ip_back;
+						memset(msg, 0, sizeof(MESG));
+                        msg->msg_type = msgtype;
+                        msg->ip = ip;
 						queue_recv.push_msg(msg);
                     }
                 }
