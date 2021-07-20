@@ -182,7 +182,7 @@ qint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
 
 void MyTcpSocket::recvFromSocket()
 {
-    qDebug() << "recv data socket" <<QThread::currentThread();
+    //qDebug() << "recv data socket" <<QThread::currentThread();
     /*
     *$_msgtype_ip_size_data_#
     *
@@ -205,6 +205,7 @@ void MyTcpSocket::recvFromSocket()
         MSG_TYPE msgtype, msgtype_back; //不知道为什么下面调用qFromBigEndian使局部变量会改变，所以多准备一个back变量
         qFromBigEndian<quint16>(recvbuf + 1, 2, &msgtype);
         msgtype_back = msgtype;
+        qDebug() << "recv data type: " << msgtype_back;
         if(msgtype == CREATE_MEETING_RESPONSE || msgtype == JOIN_MEETING_RESPONSE)
         {
             quint32 data_len=4, datalen_back;

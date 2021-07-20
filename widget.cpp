@@ -48,6 +48,7 @@ Widget::Widget(QWidget *parent)
     _sendImg = new SendImg();
     _imgThread = new QThread();
     _sendImg->moveToThread(_imgThread); //新起线程接受视频帧
+    _sendImg->start();
     //_imgThread->start();
     //处理每一帧数据
 
@@ -274,12 +275,6 @@ void Widget::on_exitmeetBtn_clicked()
         _imgThread->wait();
     }
 
-    if(_sendImg->isRunning())
-    {
-        _sendImg->quit();
-        _sendImg->wait();
-    }
-
     //关闭socket
     _mytcpSocket->disconnectFromHost();
     _mytcpSocket->wait();
@@ -305,7 +300,7 @@ void Widget::on_openVedio_clicked()
         if(_camera->error() == QCamera::NoError)
         {
             _imgThread->quit();
-            _sendImg->quit();
+            _imgThread->wait();
             ui->openVedio->setText("开启摄像头");
         }
         closeImg(_mytcpSocket->getlocalip());
@@ -316,7 +311,6 @@ void Widget::on_openVedio_clicked()
         if(_camera->error() == QCamera::NoError)
         {
             _imgThread->start();
-            _sendImg->start();
             ui->openVedio->setText("关闭摄像头");
         }
     }
@@ -365,7 +359,6 @@ void Widget::on_connServer_clicked()
         ui->joinmeetBtn->setDisabled(false);
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
 
-        //开启文本传输线程
 
         ui->connServer->setDisabled(true);
     }
@@ -469,7 +462,6 @@ void Widget::datasolve(MESG *msg)
             ui->mainshow_label->setPixmap(QPixmap::fromImage(img).scaled(ui->mainshow_label->size()));
         }
     }
-
     else if(msg->msg_type == PARTNER_JOIN)
     {
         Partner* p = addPartner(msg->ip);
@@ -482,6 +474,10 @@ void Widget::datasolve(MESG *msg)
         {
             ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
         }
+    }
+    else if (msg->msg_type == PARTNER_JOIN2)
+    {
+
     }
     else if(msg->msg_type == RemoteHostClosedError)
     {
@@ -518,7 +514,7 @@ void Widget::datasolve(MESG *msg)
 
 Partner* Widget::addPartner(quint32 ip)
 {
-    if (partner.count(ip) == 1) return NULL;
+    //if (partner.contains(ip)) return NULL;
     Partner *p = new Partner(ui->scrollAreaWidgetContents ,ip);
     if (p == NULL)
     {
@@ -537,7 +533,7 @@ Partner* Widget::addPartner(quint32 ip)
 
 void Widget::removePartner(quint32 ip)
 {
-    if(partner.count(ip) == 1)
+    if(partner.contains(ip))
     {
         Partner *p = partner[ip];
         disconnect(p, SIGNAL(sendip(quint32)), this, SLOT(recvip(quint32)));
@@ -545,7 +541,6 @@ void Widget::removePartner(quint32 ip)
         delete p;
         partner.remove(ip);
     }
-
 }
 
 void Widget::clearPartner()
@@ -553,13 +548,16 @@ void Widget::clearPartner()
     ui->mainshow_label->setPixmap(QPixmap());
     if(partner.size() == 0) return;
 
-    QMapIterator<quint32, Partner*> i(partner);
-
-    while(i.hasNext())
+    QMap<quint32, Partner*>::iterator iter =   partner.begin();
+    while (iter != partner.end())
     {
-        removePartner(i.next().key());
+        quint32 ip = iter.key();
+        iter++;
+        Partner *p =  partner.take(ip);
+        ui->verticalLayout_3->removeWidget(p);
+        delete p;
+        p = nullptr;
     }
-    partner.clear();
 }
 
 void Widget::recvip(quint32 ip)
