@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    AudioInput.cpp \
     hintdialog.cpp \
     main.cpp \
     mytcpsocket.cpp \
@@ -30,6 +31,7 @@ SOURCES += \
     widget.cpp
 
 HEADERS += \
+    AudioInput.h \
     hintdialog.h \
     mytcpsocket.h \
     myvideosurface.h \

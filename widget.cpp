@@ -14,6 +14,7 @@
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QHostAddress>
+#include <QTextCodec>
 QRect  Widget::pos = QRect(-1, -1, -1, -1);
 
 Widget::Widget(QWidget *parent)
@@ -32,13 +33,16 @@ Widget::Widget(QWidget *parent)
 
     ui->setupUi(this);
 
+    ui->openAudio->setText(QString(OPENAUDIO).toUtf8());
+    ui->openVedio->setText(QString(OPENVIDEO).toUtf8());
+
     this->setGeometry(Widget::pos);
     this->setMinimumSize(QSize(Widget::pos.width() * 0.7, Widget::pos.height() * 0.7));
     this->setMaximumSize(QSize(Widget::pos.width(), Widget::pos.height()));
     ui->exitmeetBtn->setDisabled(true);
     ui->joinmeetBtn->setDisabled(true);
     ui->createmeetBtn->setDisabled(true);
-    ui->openAudio->setDisabled(true);
+    //ui->openAudio->setDisabled(true);
     ui->openVedio->setDisabled(true);
     //ui->openVedio->setDisabled(true);
     mainip = 0; //主屏幕显示的用户IP图像
@@ -96,8 +100,17 @@ Widget::Widget(QWidget *parent)
     _camera->setViewfinder(_myvideosurface);
     _camera->setCaptureMode(QCamera::CaptureStillImage);
 
+    //音频
+    _ainput = new AudioInput();
+    _ainputThread = new QThread();
+    _ainput->moveToThread(_ainputThread);
+    _ainputThread->start();
 
-
+    connect(this, SIGNAL(startAudio()), _ainput, SLOT(startCollect()));
+    connect(this, SIGNAL(stopAudio()), _ainput, SLOT(stopCollect()));
+    connect(_ainput, SIGNAL(audioinputerror(QString)), this, SLOT(audioError(QString)));
+    connect(this, SIGNAL(volumnChange(int)), _ainput, SLOT(setVolumn(int)));
+    
     //设置滚动条
     ui->scrollArea->verticalScrollBar()->setStyleSheet("QScrollBar:vertical"
                                                        "{"
@@ -225,7 +238,12 @@ Widget::~Widget()
         _sendText->stopImmediately();
         _sendText->wait();
     }
-
+    
+    if (_ainputThread->isRunning())
+    {
+        _ainputThread->quit();
+        _ainputThread->wait();
+    }
 
     delete ui;
 }
@@ -316,8 +334,28 @@ void Widget::on_openVedio_clicked()
     }
 }
 
+
+void Widget::on_openAudio_clicked()
+{
+    if (ui->openAudio->text().toUtf8() == QString(OPENAUDIO).toUtf8())
+    {
+        emit startAudio();
+        ui->openAudio->setText(QString(CLOSEAUDIO).toUtf8());
+    }
+    else if(ui->openAudio->text().toUtf8() == QString(CLOSEAUDIO).toUtf8())
+    {
+        emit stopAudio();
+        ui->openAudio->setText(QString(OPENAUDIO).toUtf8());
+    }
+}
+
 void Widget::closeImg(quint32 ip)
 {
+    if (!partner.contains(ip))
+    {
+        qDebug() << "close img error";
+        return;
+    }
     Partner * p = partner[ip];
     p->setpic(QImage(":/myImage/1.jpg"));
 
@@ -375,6 +413,10 @@ void Widget::cameraError(QCamera::Error)
     QMessageBox::warning(this, "Camera error", _camera->errorString() , QMessageBox::Yes, QMessageBox::Yes);
 }
 
+void Widget::audioError(QString err)
+{
+    QMessageBox::warning(this, "Audio error", err, QMessageBox::Yes);
+}
 
 void Widget::datasolve(MESG *msg)
 {
@@ -605,3 +647,9 @@ void Widget::on_joinmeetBtn_clicked()
         emit PushText(JOIN_MEETING, roomNo);
     }
 }
+
+void Widget::on_horizontalSlider_valueChanged(int value)
+{
+    emit volumnChange(value);
+}
+

@@ -13,6 +13,24 @@
 #ifndef WAITSECONDS
 #define WAITSECONDS 2
 #endif
+
+#ifndef OPENVIDEO
+#define OPENVIDEO "打开视频"
+#endif
+
+#ifndef CLOSEVIDEO
+#define CLOSEVIDEO "关闭视频"
+#endif
+
+#ifndef OPENAUDIO
+#define OPENAUDIO "打开音频"
+#endif
+
+#ifndef CLOSEAUDIO
+#define CLOSEAUDIO "关闭音频"
+#endif
+
+
 enum MSG_TYPE
 {
     IMG_SEND = 0,
