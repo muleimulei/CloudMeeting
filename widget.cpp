@@ -42,7 +42,7 @@ Widget::Widget(QWidget *parent)
     ui->exitmeetBtn->setDisabled(true);
     ui->joinmeetBtn->setDisabled(true);
     ui->createmeetBtn->setDisabled(true);
-    //ui->openAudio->setDisabled(true);
+    ui->openAudio->setDisabled(true);
     ui->openVedio->setDisabled(true);
     //ui->openVedio->setDisabled(true);
     mainip = 0; //主屏幕显示的用户IP图像
@@ -104,67 +104,17 @@ Widget::Widget(QWidget *parent)
     _ainput = new AudioInput();
     _ainputThread = new QThread();
     _ainput->moveToThread(_ainputThread);
-    _ainputThread->start();
+
+
+    _aoutput = new AudioOutput();
+	_ainputThread->start(); //获取音频，发送
+	_aoutput->start(); //播放
 
     connect(this, SIGNAL(startAudio()), _ainput, SLOT(startCollect()));
     connect(this, SIGNAL(stopAudio()), _ainput, SLOT(stopCollect()));
     connect(_ainput, SIGNAL(audioinputerror(QString)), this, SLOT(audioError(QString)));
-    connect(this, SIGNAL(volumnChange(int)), _ainput, SLOT(setVolumn(int)));
-    
     //设置滚动条
-    ui->scrollArea->verticalScrollBar()->setStyleSheet("QScrollBar:vertical"
-                                                       "{"
-                                                       "width:8px;"
-                                                       "background:rgba(0,0,0,0%);"
-                                                       "margin:0px,0px,0px,0px;"
-                                                       "padding-top:9px;"
-                                                       "padding-bottom:9px;"
-                                                       "}"
-                                                       "QScrollBar::handle:vertical"
-                                                       "{"
-                                                       "width:8px;"
-                                                       "background:rgba(0,0,0,25%);"
-                                                       " border-radius:4px;"
-                                                       "min-height:20;"
-                                                       "}"
-                                                       "QScrollBar::handle:vertical:hover"
-                                                       "{"
-                                                       "width:8px;"
-                                                       "background:rgba(0,0,0,50%);"
-                                                       " border-radius:4px;"
-                                                       "min-height:20;"
-                                                       "}"
-                                                       "QScrollBar::add-line:vertical"
-                                                       "{"
-                                                       "height:9px;width:8px;"
-                                                       "border-image:url(:/images/a/3.png);"
-                                                       "subcontrol-position:bottom;"
-                                                       "}"
-                                                       "QScrollBar::sub-line:vertical"
-                                                       "{"
-                                                       "height:9px;width:8px;"
-                                                       "border-image:url(:/images/a/1.png);"
-                                                       "subcontrol-position:top;"
-                                                       "}"
-                                                       "QScrollBar::add-line:vertical:hover"
-                                                       "{"
-                                                       "height:9px;width:8px;"
-                                                       "border-image:url(:/images/a/4.png);"
-                                                       "subcontrol-position:bottom;"
-                                                       "}"
-                                                       "QScrollBar::sub-line:vertical:hover"
-                                                       "{"
-                                                       "height:9px;width:8px;"
-                                                       "border-image:url(:/images/a/2.png);"
-                                                       "subcontrol-position:top;"
-                                                       "}"
-                                                       "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical"
-                                                       "{"
-                                                       "background:rgba(0,0,0,10%);"
-                                                       "border-radius:4px;"
-                                                       "}"
-                                                       );
-
+    ui->scrollArea->verticalScrollBar()->setStyleSheet("QScrollBar:vertical { width:8px; background:rgba(0,0,0,0%); margin:0px,0px,0px,0px; padding-top:9px; padding-bottom:9px; } QScrollBar::handle:vertical { width:8px; background:rgba(0,0,0,25%); border-radius:4px; min-height:20; } QScrollBar::handle:vertical:hover { width:8px; background:rgba(0,0,0,50%); border-radius:4px; min-height:20; } QScrollBar::add-line:vertical { height:9px;width:8px; border-image:url(:/images/a/3.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical { height:9px;width:8px; border-image:url(:/images/a/1.png); subcontrol-position:top; } QScrollBar::add-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/4.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/2.png); subcontrol-position:top; } QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical { background:rgba(0,0,0,10%); border-radius:4px; }");
 }
 
 void Widget::cameraImageCapture(QVideoFrame frame)
@@ -245,6 +195,12 @@ Widget::~Widget()
         _ainputThread->wait();
     }
 
+    if (_aoutput->isRunning())
+    {
+        _aoutput->stopImmediately();
+        _aoutput->wait();
+    }
+
     delete ui;
 }
 
@@ -283,7 +239,10 @@ void Widget::on_exitmeetBtn_clicked()
     ui->createmeetBtn->setDisabled(true);
     ui->exitmeetBtn->setDisabled(true);
     _createmeet = false;
+    _joinmeet = false;
     //-----------------------------------------
+    //清空partner
+    clearPartner();
     // 关闭套接字
 
     //关闭各个启动线程
@@ -303,8 +262,6 @@ void Widget::on_exitmeetBtn_clicked()
     ui->connServer->setDisabled(false);
     ui->groupBox->setTitle(QString("副屏幕"));
 
-    //清空partner
-    clearPartner();
     QMessageBox::warning(this, "Information", "退出会议" , QMessageBox::Yes, QMessageBox::Yes);
     //-----------------------------------------
 
@@ -337,6 +294,7 @@ void Widget::on_openVedio_clicked()
 
 void Widget::on_openAudio_clicked()
 {
+    if (!_createmeet || !_joinmeet) return;
     if (ui->openAudio->text().toUtf8() == QString(OPENAUDIO).toUtf8())
     {
         emit startAudio();
@@ -396,8 +354,8 @@ void Widget::on_connServer_clicked()
         ui->exitmeetBtn->setDisabled(true);
         ui->joinmeetBtn->setDisabled(false);
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
-
-
+		_ainputThread->start(); //获取音频，发送
+		_aoutput->start(); //播放
         ui->connServer->setDisabled(true);
     }
     else
@@ -434,7 +392,6 @@ void Widget::datasolve(MESG *msg)
 
     //        qDebug() <<"hello" << roomno;
             ui->exitmeetBtn->setDisabled(false);
-            ui->openAudio->setDisabled(false);
             ui->openVedio->setDisabled(false);
             ui->joinmeetBtn->setDisabled(true);
 
@@ -443,6 +400,8 @@ void Widget::datasolve(MESG *msg)
             mainip = _mytcpSocket->getlocalip();
             ui->groupBox_2->setTitle(QHostAddress(mainip).toString());
             ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
+            
+
         }
         else
         {
@@ -459,7 +418,6 @@ void Widget::datasolve(MESG *msg)
         {
             QMessageBox::information(this, "Meeting Error", tr("会议不存在") , QMessageBox::Yes, QMessageBox::Yes);
             ui->exitmeetBtn->setDisabled(true);
-            ui->openAudio->setDisabled(true);
             ui->openVedio->setDisabled(true);
             ui->joinmeetBtn->setDisabled(false);
             ui->connServer->setDisabled(true);
@@ -532,6 +490,7 @@ void Widget::datasolve(MESG *msg)
     else if(msg->msg_type == RemoteHostClosedError)
     {
         if(_createmeet || _joinmeet) QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
+        clearPartner();
         _mytcpSocket->disconnectFromHost();
         _mytcpSocket->wait();
         ui->outlog->setText(QString("关闭与服务器的连接"));
@@ -539,16 +498,14 @@ void Widget::datasolve(MESG *msg)
         ui->exitmeetBtn->setDisabled(true);
         ui->connServer->setDisabled(false);
         ui->joinmeetBtn->setDisabled(true);
-        clearPartner();
-
     }
     else if(msg->msg_type == OtherNetError)
     {
         QMessageBox::warning(NULL, "Network Error", "网络异常" , QMessageBox::Yes, QMessageBox::Yes);
+        clearPartner();
         _mytcpSocket->disconnectFromHost();
         _mytcpSocket->wait();
         ui->outlog->setText(QString("网络异常......"));
-        clearPartner();
     }
     if(msg->data)
     {
@@ -576,6 +533,15 @@ Partner* Widget::addPartner(quint32 ip)
 		connect(p, SIGNAL(sendip(quint32)), this, SLOT(recvip(quint32)));
 		partner.insert(ip, p);
 		ui->verticalLayout_3->addWidget(p, 1);
+
+
+		//当有人员加入时，开启滑动条滑动事件，开启输入(只有自己时，不打开)
+        if (partner.size() > 1)
+        {
+			connect(this, SIGNAL(volumnChange(int)), _ainput, SLOT(setVolumn(int)), Qt::UniqueConnection);
+			connect(this, SIGNAL(volumnChange(int)), _aoutput, SLOT(setVolumn(int)), Qt::UniqueConnection);
+            ui->openAudio->setDisabled(false);
+        }
 		return p;
     }
 }
@@ -589,6 +555,15 @@ void Widget::removePartner(quint32 ip)
         ui->verticalLayout_3->removeWidget(p);
         delete p;
         partner.remove(ip);
+
+        //只有自已一个人时，关闭传输音频
+        if (partner.size() <= 1)
+        {
+			disconnect(_ainput, SLOT(setVolumn(int)));
+			_ainput->stopCollect();
+            ui->openAudio->setText(QString(OPENAUDIO).toUtf8());
+            ui->openAudio->setDisabled(true);
+        }
     }
 }
 
@@ -607,6 +582,19 @@ void Widget::clearPartner()
         delete p;
         p = nullptr;
     }
+
+    //关闭传输音频
+	disconnect(_ainput, SLOT(setVolumn(int)));
+    disconnect(_ainputThread, SLOT(setVolumn(int)));
+	_ainput->stopCollect();
+	ui->openAudio->setText(QString(CLOSEAUDIO).toUtf8());
+	ui->openAudio->setDisabled(true);
+    
+    //关闭音频播放
+
+    _aoutput->stopImmediately();
+    _aoutput->wait();
+
 }
 
 void Widget::recvip(quint32 ip)

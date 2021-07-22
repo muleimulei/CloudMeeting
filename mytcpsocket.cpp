@@ -7,6 +7,7 @@
 
 extern QUEUE_SEND queue_send;
 extern QUEUE_RECV queue_recv;
+extern QUEUE_RECV audio_recv;
 
 void MyTcpSocket::stopImmediately()
 {
@@ -454,6 +455,7 @@ void MyTcpSocket::disconnectFromHost()
     //清空 发送 队列，清空接受队列
     queue_send.clear();
     queue_recv.clear();
+	audio_recv.clear();
 }
 
 

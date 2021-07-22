@@ -12,6 +12,7 @@
 #include "partner.h"
 #include "netheader.h"
 #include <QMap>
+#include "AudioOutput.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
@@ -55,6 +56,8 @@ private:
     //音频
     AudioInput* _ainput;
     QThread* _ainputThread;
+
+    AudioOutput* _aoutput;
 public:
     Widget(QWidget *parent = nullptr);
     ~Widget();

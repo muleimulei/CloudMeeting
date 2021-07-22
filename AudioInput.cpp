@@ -15,7 +15,7 @@ AudioInput::AudioInput(QObject *parent)
 	//set format
 	format.setSampleRate(8000);
 	format.setChannelCount(1);
-	format.setSampleSize(8);
+	format.setSampleSize(16);
 	format.setCodec("audio/pcm");
 	format.setByteOrder(QAudioFormat::LittleEndian);
 	format.setSampleType(QAudioFormat::UnSignedInt);
@@ -50,14 +50,15 @@ void AudioInput::onreadyRead()
 {
 	static int num = 0, totallen  = 0;
 	int len = inputdevice->read(recvbuf + totallen, 2 * MB - totallen);
+	qDebug() << "len = " << len;
 	if (num < 10)
 	{
 		totallen += len;
 		num++;
 		return;
 	}
-	totallen = 0;
-	num = 0;
+	totallen += len;
+	qDebug() << "totallen = " << totallen;
 	MESG* msg = (MESG*)malloc(sizeof(MESG));
 	if (msg == nullptr)
 	{
@@ -66,18 +67,20 @@ void AudioInput::onreadyRead()
 	else
 	{
 		msg->msg_type = AUDIO_SEND;
-		msg->data = (uchar*)malloc(len+1);
+		msg->data = (uchar*)malloc(totallen);
 		if (msg->data == nullptr)
 		{
 			qWarning() << "malloc mesg.data fail";
 		}
 		else
 		{
-			memset(msg->data, 0, len + 1);
-			memcpy_s(msg->data, len + 1, recvbuf, len);
-			queue_recv.push_msg(msg);
+			memset(msg->data, 0, totallen);
+			memcpy_s(msg->data, totallen, recvbuf, totallen);
+			queue_send.push_msg(msg);
 		}
 	}
+	totallen = 0;
+	num = 0;
 }
 
 QString AudioInput::errorString()
