@@ -44,7 +44,6 @@ Widget::Widget(QWidget *parent)
     ui->createmeetBtn->setDisabled(true);
     ui->openAudio->setDisabled(true);
     ui->openVedio->setDisabled(true);
-    //ui->openVedio->setDisabled(true);
     mainip = 0; //主屏幕显示的用户IP图像
 
     //-------------------局部线程----------------------------
@@ -113,6 +112,8 @@ Widget::Widget(QWidget *parent)
     connect(this, SIGNAL(startAudio()), _ainput, SLOT(startCollect()));
     connect(this, SIGNAL(stopAudio()), _ainput, SLOT(stopCollect()));
     connect(_ainput, SIGNAL(audioinputerror(QString)), this, SLOT(audioError(QString)));
+    connect(_aoutput, SIGNAL(audiooutputerror(QString)), this, SLOT(audioError(QString)));
+    connect(_aoutput, SIGNAL(speaker(QString)), this, SLOT(speaks(QString)));
     //设置滚动条
     ui->scrollArea->verticalScrollBar()->setStyleSheet("QScrollBar:vertical { width:8px; background:rgba(0,0,0,0%); margin:0px,0px,0px,0px; padding-top:9px; padding-bottom:9px; } QScrollBar::handle:vertical { width:8px; background:rgba(0,0,0,25%); border-radius:4px; min-height:20; } QScrollBar::handle:vertical:hover { width:8px; background:rgba(0,0,0,50%); border-radius:4px; min-height:20; } QScrollBar::add-line:vertical { height:9px;width:8px; border-image:url(:/images/a/3.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical { height:9px;width:8px; border-image:url(:/images/a/1.png); subcontrol-position:top; } QScrollBar::add-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/4.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/2.png); subcontrol-position:top; } QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical { background:rgba(0,0,0,10%); border-radius:4px; }");
 }
@@ -141,7 +142,7 @@ void Widget::cameraImageCapture(QVideoFrame frame)
         }
 
         Partner *p = partner[_mytcpSocket->getlocalip()];
-        p->setpic(img);
+        if(p) p->setpic(img);
 
         //qDebug()<< "format: " <<  videoImg.format() << "size: " << videoImg.size() << "byteSIze: "<< videoImg.sizeInBytes();
     }
@@ -245,12 +246,6 @@ void Widget::on_exitmeetBtn_clicked()
     clearPartner();
     // 关闭套接字
 
-    //关闭各个启动线程
-    if(_imgThread->isRunning())
-    {
-        _imgThread->quit();
-        _imgThread->wait();
-    }
 
     //关闭socket
     _mytcpSocket->disconnectFromHost();
@@ -354,8 +349,6 @@ void Widget::on_connServer_clicked()
         ui->exitmeetBtn->setDisabled(true);
         ui->joinmeetBtn->setDisabled(false);
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
-		_ainputThread->start(); //获取音频，发送
-		_aoutput->start(); //播放
         ui->connServer->setDisabled(true);
     }
     else
@@ -541,6 +534,7 @@ Partner* Widget::addPartner(quint32 ip)
 			connect(this, SIGNAL(volumnChange(int)), _ainput, SLOT(setVolumn(int)), Qt::UniqueConnection);
 			connect(this, SIGNAL(volumnChange(int)), _aoutput, SLOT(setVolumn(int)), Qt::UniqueConnection);
             ui->openAudio->setDisabled(false);
+            _aoutput->startPlay();
         }
 		return p;
     }
@@ -560,7 +554,9 @@ void Widget::removePartner(quint32 ip)
         if (partner.size() <= 1)
         {
 			disconnect(_ainput, SLOT(setVolumn(int)));
+			disconnect(_aoutput, SLOT(setVolumn(int)));
 			_ainput->stopCollect();
+            _aoutput->stopPlay();
             ui->openAudio->setText(QString(OPENAUDIO).toUtf8());
             ui->openAudio->setDisabled(true);
         }
@@ -586,14 +582,21 @@ void Widget::clearPartner()
     //关闭传输音频
 	disconnect(_ainput, SLOT(setVolumn(int)));
     disconnect(_ainputThread, SLOT(setVolumn(int)));
+    //关闭音频播放与采集
 	_ainput->stopCollect();
+    _aoutput->stopPlay();
 	ui->openAudio->setText(QString(CLOSEAUDIO).toUtf8());
 	ui->openAudio->setDisabled(true);
     
-    //关闭音频播放
 
-    _aoutput->stopImmediately();
-    _aoutput->wait();
+    //关闭图片传输线程
+    if(_imgThread->isRunning())
+    {
+        _imgThread->quit();
+        _imgThread->wait();
+    }
+    ui->openVedio->setText(QString(OPENVIDEO).toUtf8());
+    ui->openVedio->setDisabled(true);
 
 }
 
@@ -609,6 +612,7 @@ void Widget::recvip(quint32 ip)
 		Partner* p = partner[ip];
 		p->setStyleSheet("border-width: 1px; border-style: solid; border-color:rgba(255, 0 , 0, 0.7)");
 	}
+	ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
     mainip = ip;
     ui->groupBox_2->setTitle(QHostAddress(mainip).toString());
     qDebug() << ip;
@@ -641,3 +645,7 @@ void Widget::on_horizontalSlider_valueChanged(int value)
     emit volumnChange(value);
 }
 
+void Widget::speaks(QString ip)
+{
+    ui->outlog->setText(QString(ip + " 正在说话").toUtf8());
+}

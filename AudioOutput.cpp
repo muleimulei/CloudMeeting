@@ -2,6 +2,7 @@
 #include <QMutexLocker>
 #include "netheader.h"
 #include <QDebug>
+#include <QHostAddress>
 
 #ifndef FRAME_LEN_500MS
 #define FRAME_LEN_500MS 8000
@@ -27,12 +28,36 @@ AudioOutput::AudioOutput(QObject *parent)
 	}
 	audio = new QAudioOutput(format, this);
 	connect(audio, SIGNAL(stateChanged(QAudio::State)), this, SLOT(handleStateChanged(QAudio::State) ));
-//	connect(this, SIGNAL(finished()), this, SLOT(clearQueue()));
+	outputdevice = nullptr;
 }
 
 AudioOutput::~AudioOutput()
 {
 	delete audio;
+}
+
+QString AudioOutput::errorString()
+{
+	if (audio->error() == QAudio::OpenError)
+	{
+		return QString("AudioOutput An error occurred opening the audio device").toUtf8();
+	}
+	else if (audio->error() == QAudio::IOError)
+	{
+		return QString("AudioOutput An error occurred during read/write of audio device").toUtf8();
+	}
+	else if (audio->error() == QAudio::UnderrunError)
+	{
+		return QString("AudioOutput Audio data is not being fed to the audio device at a fast enough rate").toUtf8();
+	}
+	else if (audio->error() == QAudio::FatalError)
+	{
+		return QString("AudioOutput A non-recoverable error has occurred, the audio device is not usable at this time.");
+	}
+	else
+	{
+		return QString("AudioOutput No errors have occurred").toUtf8();
+	}
 }
 void AudioOutput::handleStateChanged(QAudio::State state)
 {
@@ -45,6 +70,8 @@ void AudioOutput::handleStateChanged(QAudio::State state)
 		case QAudio::StoppedState:
 			if (audio->error() != QAudio::NoError)
 			{
+				audio->stop();
+				emit audiooutputerror(errorString());
 				qDebug() << "out audio error" << audio->error();
 			}
 			break;
@@ -57,9 +84,24 @@ void AudioOutput::handleStateChanged(QAudio::State state)
 	}
 }
 
+void AudioOutput::startPlay()
+{
+	if (audio->state() == QAudio::ActiveState) return;
+	outputdevice = audio->start();
+}
+
+void AudioOutput::stopPlay()
+{
+	if (audio->state() == QAudio::StoppedState) return;
+	{
+		QMutexLocker lock(&device_lock);
+		outputdevice = nullptr;
+	}
+	audio->stop();
+}
+
 void AudioOutput::run()
 {
-	outputdevice = audio->start();
 	is_canRun = true;
 	QByteArray m_pcmDataBuffer;
 	for (;;)
@@ -68,26 +110,39 @@ void AudioOutput::run()
 			QMutexLocker lock(&m_lock);
 			if (is_canRun == false)
 			{
-				audio->stop();
+				stopPlay();
 				return;
 			}
 		}
 		MESG* msg = audio_recv.pop_msg();
 		if (msg == NULL) continue;
-		m_pcmDataBuffer.append((char *)msg->data, msg->len);
 
-		if (m_pcmDataBuffer.size() >= FRAME_LEN_500MS)
 		{
-			//写入音频数据
-			qint64 ret =  outputdevice->write(m_pcmDataBuffer.data(), FRAME_LEN_500MS);
-			if (ret < 0)
+			QMutexLocker lock(&device_lock);
+			if (outputdevice != nullptr)
 			{
-				qDebug() << outputdevice->errorString();
-				return;
+
+				m_pcmDataBuffer.append((char*)msg->data, msg->len);
+
+				if (m_pcmDataBuffer.size() >= FRAME_LEN_500MS)
+				{
+					//写入音频数据
+					qint64 ret = outputdevice->write(m_pcmDataBuffer.data(), FRAME_LEN_500MS);
+					if (ret < 0)
+					{
+						qDebug() << outputdevice->errorString();
+						return;
+					}
+					else
+					{
+						emit speaker(QHostAddress(msg->ip).toString());
+						m_pcmDataBuffer = m_pcmDataBuffer.right(m_pcmDataBuffer.size() - ret);
+					}
+				}
 			}
 			else
 			{
-				m_pcmDataBuffer = m_pcmDataBuffer.right(m_pcmDataBuffer.size() - ret);
+				m_pcmDataBuffer.clear();
 			}
 		}
 		if (msg->data) free(msg->data);

@@ -99,10 +99,10 @@ void MyTcpSocket::run()
         qToBigEndian<quint32>(ip,  sendbuf + bytestowrite);
         bytestowrite += 4;
 
-        if(send->msg_type == CREATE_MEETING)
+        if(send->msg_type == CREATE_MEETING || send->msg_type == AUDIO_SEND) //发送音频
         {
             //发送数据大小
-            qToBigEndian<quint32>(0, sendbuf + bytestowrite);
+            qToBigEndian<quint32>(send->len, sendbuf + bytestowrite);
             bytestowrite += 4;
         }
         else if(send->msg_type == IMG_SEND)
@@ -327,7 +327,7 @@ void MyTcpSocket::recvFromSocket()
                 }
             }
         }
-        else if(msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT)
+        else if(msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT || msgtype == AUDIO_RECV)
         {
             //read ipv4
             quint32 ip;
@@ -400,6 +400,33 @@ void MyTcpSocket::recvFromSocket()
                         msg->msg_type = msgtype;
                         msg->ip = ip;
 						queue_recv.push_msg(msg);
+                    }
+                }
+                else if (msgtype == AUDIO_RECV)
+                {
+                    MESG* msg = (MESG*)malloc(sizeof(MESG));
+                    if (msg == NULL)
+                    {
+                        qDebug() << __LINE__ << "malloc failed";
+                    }
+                    else
+                    {
+                        memset(msg, 0, sizeof(MESG));
+                        msg->msg_type = AUDIO_RECV;
+                        msg->ip = ip;
+                        msg->data = (uchar*)malloc(data_len);
+                        if (msg->data == nullptr)
+                        {
+                            qDebug() << __LINE__ << "malloc msg.data failed";
+                        }
+                        else
+                        {
+                            memset(msg->data, 0, data_len);
+                            memcpy_s(msg->data, data_len, recvbuf, data_len);
+                            msg->len = data_len;
+                            msg->ip = ip;
+                            audio_recv.push_msg(msg);
+                        }
                     }
                 }
             }

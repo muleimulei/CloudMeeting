@@ -78,6 +78,7 @@ private slots:
     void on_joinmeetBtn_clicked();
 
     void on_horizontalSlider_valueChanged(int value);
+    void speaks(QString);
 
 signals:
     void pushImg(QImage);

@@ -38,13 +38,16 @@ AudioInput::~AudioInput()
 
 void AudioInput::startCollect()
 {
+	if (audio->state() == QAudio::ActiveState) return;
 	inputdevice = audio->start();
 	connect(inputdevice, SIGNAL(readyRead()), this, SLOT(onreadyRead()));
 }
 void AudioInput::stopCollect()
 {
+	if (audio->state() == QAudio::StoppedState) return;
 	disconnect(this, SLOT(onreadyRead()));
 	audio->stop();
+	inputdevice = nullptr;
 }
 void AudioInput::onreadyRead()
 {
@@ -66,6 +69,7 @@ void AudioInput::onreadyRead()
 	}
 	else
 	{
+		memset(msg, 0, sizeof(MESG));
 		msg->msg_type = AUDIO_SEND;
 		msg->data = (uchar*)malloc(totallen);
 		if (msg->data == nullptr)
@@ -76,6 +80,7 @@ void AudioInput::onreadyRead()
 		{
 			memset(msg->data, 0, totallen);
 			memcpy_s(msg->data, totallen, recvbuf, totallen);
+			msg->len = totallen;
 			queue_send.push_msg(msg);
 		}
 	}
@@ -87,23 +92,23 @@ QString AudioInput::errorString()
 {
 	if (audio->error() == QAudio::OpenError)
 	{
-		return QString("An error occurred opening the audio device").toUtf8();
+		return QString("AudioInput An error occurred opening the audio device").toUtf8();
 	}
 	else if (audio->error() == QAudio::IOError)
 	{
-		return QString("An error occurred during read/write of audio device").toUtf8();
+		return QString("AudioInput An error occurred during read/write of audio device").toUtf8();
 	}
 	else if (audio->error() == QAudio::UnderrunError)
 	{
-		return QString("Audio data is not being fed to the audio device at a fast enough rate").toUtf8();
+		return QString("AudioInput Audio data is not being fed to the audio device at a fast enough rate").toUtf8();
 	}
 	else if (audio->error() == QAudio::FatalError)
 	{
-		return QString("A non-recoverable error has occurred, the audio device is not usable at this time.");
+		return QString("AudioInput A non-recoverable error has occurred, the audio device is not usable at this time.");
 	}
 	else
 	{
-		return QString("No errors have occurred").toUtf8();
+		return QString("AudioInput No errors have occurred").toUtf8();
 	}
 }
 
