@@ -52,6 +52,7 @@ void AudioInput::stopCollect()
 void AudioInput::onreadyRead()
 {
 	static int num = 0, totallen  = 0;
+	if (inputdevice == nullptr) return;
 	int len = inputdevice->read(recvbuf + totallen, 2 * MB - totallen);
 	qDebug() << "len = " << len;
 	if (num < 10)

@@ -29,6 +29,7 @@ private:
     QThread *_sockThread;
     uchar *sendbuf;
     uchar* recvbuf;
+    quint64 hasrecvive;
 
     QMutex m_lock;
     volatile bool m_isCanRun;

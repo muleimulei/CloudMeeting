@@ -31,6 +31,10 @@
 #endif
 
 
+#ifndef MSG_HEADER
+#define MSG_HEADER 11
+#endif
+
 enum MSG_TYPE
 {
     IMG_SEND = 0,

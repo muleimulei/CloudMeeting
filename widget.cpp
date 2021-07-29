@@ -527,7 +527,6 @@ Partner* Widget::addPartner(quint32 ip)
 		partner.insert(ip, p);
 		ui->verticalLayout_3->addWidget(p, 1);
 
-
 		//当有人员加入时，开启滑动条滑动事件，开启输入(只有自己时，不打开)
         if (partner.size() > 1)
         {

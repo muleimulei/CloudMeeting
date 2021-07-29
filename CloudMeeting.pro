@@ -11,6 +11,8 @@ CONFIG += c++11
 DEFINES += QT_DEPRECATED_WARNINGS
 
 
+win32-msvc*:QMAKE_CXXFLAGS += /wd"4819" /utf-8
+
 # You can also make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
@@ -18,6 +20,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     AudioInput.cpp \
+    AudioOutput.cpp \
     hintdialog.cpp \
     main.cpp \
     mytcpsocket.cpp \
@@ -32,6 +35,7 @@ SOURCES += \
 
 HEADERS += \
     AudioInput.h \
+    AudioOutput.h \
     hintdialog.h \
     mytcpsocket.h \
     myvideosurface.h \
