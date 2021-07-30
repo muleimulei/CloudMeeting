@@ -246,7 +246,6 @@ void Widget::on_exitmeetBtn_clicked()
     clearPartner();
     // 关闭套接字
 
-
     //关闭socket
     _mytcpSocket->disconnectFromHost();
     _mytcpSocket->wait();
@@ -405,7 +404,7 @@ void Widget::datasolve(MESG *msg)
     }
     else if(msg->msg_type == JOIN_MEETING_RESPONSE)
     {
-        char c;
+        qint32 c;
         memcpy(&c, msg->data, msg->len);
         if(c == 0)
         {
@@ -416,7 +415,11 @@ void Widget::datasolve(MESG *msg)
             ui->connServer->setDisabled(true);
             _joinmeet = false;
         }
-        else if(c == 1)
+        else if(c == -1)
+        {
+            QMessageBox::warning(this, "Meeting information", "成员已满，无法加入" , QMessageBox::Yes, QMessageBox::Yes);
+        }
+        else if (c > 0)
         {
             QMessageBox::warning(this, "Meeting information", "加入成功" , QMessageBox::Yes, QMessageBox::Yes);
             //添加用户自己
@@ -429,16 +432,13 @@ void Widget::datasolve(MESG *msg)
             ui->createmeetBtn->setDisabled(true);
             _joinmeet = true;
         }
-        else if(c == 2)
-        {
-            QMessageBox::warning(this, "Meeting information", "成员已满，无法加入" , QMessageBox::Yes, QMessageBox::Yes);
-        }
     }
     else if(msg->msg_type == IMG_RECV)
     {
         QHostAddress a(msg->ip);
         qDebug() << a.toString();
-        QImage img(msg->data, msg->width, msg->height, msg->format);
+        QImage img;
+        img.loadFromData(msg->data, msg->len);
         if(partner.count(msg->ip) == 1)
         {
             Partner* p = partner[msg->ip];
@@ -454,6 +454,7 @@ void Widget::datasolve(MESG *msg)
         {
             ui->mainshow_label->setPixmap(QPixmap::fromImage(img).scaled(ui->mainshow_label->size()));
         }
+        repaint();
     }
     else if(msg->msg_type == PARTNER_JOIN)
     {

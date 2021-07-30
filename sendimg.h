@@ -13,7 +13,7 @@ class SendImg : public QThread
 {
     Q_OBJECT
 private:
-    QQueue<QImage> imgqueue;
+    QQueue<QByteArray> imgqueue;
     QMutex queue_lock;
     QWaitCondition queue_waitCond;
     void run() override;

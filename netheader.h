@@ -62,10 +62,7 @@ struct MESG //消息结构体
     MSG_TYPE msg_type;
     uchar* data;
     long len;
-    QImage::Format format;
     quint32 ip;
-    int width;
-    int height;
 };
 Q_DECLARE_METATYPE(MESG *);
 

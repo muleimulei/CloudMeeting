@@ -110,13 +110,7 @@ void MyTcpSocket::run()
         {
             qDebug() << "send img";
             //发送数据大小(多出来的2字节是图片类型, 宽度，高度)
-            qToBigEndian<quint32>(send->len + 2 + 2 + 2, sendbuf + bytestowrite);
-            bytestowrite += 4;
-            qToBigEndian<quint16>(send->format, sendbuf + bytestowrite);
-            bytestowrite += 2;
-            qToBigEndian<quint32>(send->width, sendbuf + bytestowrite);
-            bytestowrite += 4;
-            qToBigEndian<quint32>(send->height, sendbuf + bytestowrite);
+            qToBigEndian<quint32>(send->len, sendbuf + bytestowrite);
             bytestowrite += 4;
         }
         else if(send->msg_type == JOIN_MEETING)
@@ -196,13 +190,21 @@ void MyTcpSocket::recvFromSocket()
     *$_msgtype_ip_size_data_#
     */
     qint64 availbytes = _socktcp->bytesAvailable();
+	if (availbytes <=0 )
+	{
+		return;
+	}
     qint64 ret = _socktcp->read((char *) recvbuf + hasrecvive, availbytes);
     if (ret <= 0)
     {
-        qDebug() << "err or no more data";
+        qDebug() << "error or no more data";
+		return;
     }
     hasrecvive += ret;
-    
+    if (hasrecvive > 1228810)
+    {
+		qDebug() << "hello";
+    }
     //数据包不够
     if (hasrecvive < MSG_HEADER)
     {
@@ -229,7 +231,7 @@ void MyTcpSocket::recvFromSocket()
 					if (msgtype == CREATE_MEETING_RESPONSE)
 					{
 						qint32 roomNo;
-						qFromBigEndian<qint32>(recvbuf, 4, &roomNo);
+						qFromBigEndian<qint32>(recvbuf + MSG_HEADER, 4, &roomNo);
 
 						MESG* msg = (MESG*)malloc(sizeof(MESG));
 
@@ -241,7 +243,7 @@ void MyTcpSocket::recvFromSocket()
 						{
 							memset(msg, 0, sizeof(MESG));
 							msg->msg_type = msgtype;
-							msg->data = (uchar*)malloc(data_len + 10);
+							msg->data = (uchar*)malloc((quint64)data_len + 10);
 							if (msg->data == NULL)
 							{
 								free(msg);
@@ -249,7 +251,7 @@ void MyTcpSocket::recvFromSocket()
 							}
 							else
 							{
-								memset(msg->data, 0, data_len + 10);
+								memset(msg->data, 0, (quint64)data_len + 10);
 								memcpy(msg->data, &roomNo, data_len);
 								msg->len = data_len;
 								queue_recv.push_msg(msg);
@@ -259,8 +261,8 @@ void MyTcpSocket::recvFromSocket()
 					}
 					else if (msgtype == JOIN_MEETING_RESPONSE)
 					{
-						char c;
-						memcpy(&c, recvbuf, data_len);
+						qint32 c;
+						memcpy(&c, recvbuf + MSG_HEADER, data_len);
 
 						MESG* msg = (MESG*)malloc(sizeof(MESG));
 
@@ -312,7 +314,7 @@ void MyTcpSocket::recvFromSocket()
 								int pos = 0;
 								for (int i = 0; i < data_len / sizeof(uint32_t); i++)
 								{
-									qFromBigEndian<uint32_t>(recvbuf + pos, sizeof(uint32_t), &ip);
+									qFromBigEndian<uint32_t>(recvbuf + MSG_HEADER + pos, sizeof(uint32_t), &ip);
 									memcpy_s(msg->data + pos, data_len - pos, &ip, sizeof(uint32_t));
 									pos += sizeof(uint32_t);
 								}
@@ -334,16 +336,10 @@ void MyTcpSocket::recvFromSocket()
 
 					if (msgtype == IMG_RECV)
 					{
-						QImage::Format imageformat;
-						uint16_t format;
-						qFromBigEndian<uint16_t>(recvbuf, 2, &format);
-						imageformat = (QImage::Format)format;
-
-						quint32 width, height;
-						qFromBigEndian<quint32>(recvbuf + 2, 4, &width);
-
-						qFromBigEndian<quint32>(recvbuf + 6, 4, &height);
-
+						QString ss = QString::fromLatin1((char *)recvbuf + MSG_HEADER, data_len);
+						QByteArray rc;
+						rc = QByteArray::fromBase64(ss.toLatin1());
+						QByteArray rdc = qUncompress(rc);
 						//将消息加入到接收队列
 		//                qDebug() << roomNo;
 
@@ -356,19 +352,18 @@ void MyTcpSocket::recvFromSocket()
 						{
 							memset(msg, 0, sizeof(MESG));
 							msg->msg_type = msgtype;
-							msg->format = imageformat;
-							msg->width = width;
-							msg->height = height;
-							msg->data = (uchar*)malloc(data_len - 10); // 10 = format + width + width
+							msg->data = (uchar*)malloc(rdc.size()); // 10 = format + width + width
 							if (msg->data == NULL)
 							{
+								free(msg);
 								qDebug() << __LINE__ << " malloc failed";
 							}
 							else
 							{
-								memset(msg->data, 0, data_len - 10);
-								memcpy(msg->data, recvbuf + 10, data_len - 10);
-								msg->len = data_len - 10;
+								memset(msg->data, 0, rdc.size());
+								memcpy_s(msg->data, rdc.size(), rdc.data() , rdc.size());
+								msg->len = rdc.size();
+								msg->ip = ip;
 								queue_recv.push_msg(msg);
 							}
 						}
@@ -408,7 +403,7 @@ void MyTcpSocket::recvFromSocket()
 							else
 							{
 								memset(msg->data, 0, data_len);
-								memcpy_s(msg->data, data_len, recvbuf, data_len);
+								memcpy_s(msg->data, data_len, recvbuf + MSG_HEADER, data_len);
 								msg->len = data_len;
 								msg->ip = ip;
 								audio_recv.push_msg(msg);
@@ -423,7 +418,7 @@ void MyTcpSocket::recvFromSocket()
 				disconnect(this, SLOT(recvFromSocket()));
 				return;
             }
-			memcpy_s(recvbuf, 4 * MB, recvbuf + MSG_HEADER + data_size, hasrecvive - ((quint64)data_size + 1 + MSG_HEADER));
+			memmove_s(recvbuf, 4 * MB, recvbuf + MSG_HEADER + data_size + 1, hasrecvive - ((quint64)data_size + 1 + MSG_HEADER));
 			hasrecvive -= ((quint64)data_size + 1 + MSG_HEADER);
         }
         else
@@ -450,6 +445,7 @@ bool MyTcpSocket::connectToServer(QString ip, QString port, QIODevice::OpenModeF
         _sockThread->start(); //读数据
         return true;
     }
+	_socktcp->close();
     return false;
 }
 

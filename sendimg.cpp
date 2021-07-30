@@ -2,6 +2,7 @@
 #include "netheader.h"
 #include <QDebug>
 #include <cstring>
+#include <QBuffer>
 
 extern QUEUE_SEND queue_send;
 
@@ -33,7 +34,7 @@ void SendImg::run()
 			}
         }
 
-        QImage img = imgqueue.front();
+        QByteArray img = imgqueue.front();
 //        qDebug() << "取出队列:" << QThread::currentThreadId();
         imgqueue.pop_front();
         queue_lock.unlock();//解锁
@@ -50,14 +51,22 @@ void SendImg::run()
         {
             memset(imgsend, 0, sizeof(MESG));
 			imgsend->msg_type = IMG_SEND;
-			imgsend->len = img.sizeInBytes();
-			imgsend->data = new uchar[imgsend->len];
-			imgsend->format = img.format();
-			imgsend->width = img.width();
-			imgsend->height = img.height();
-			memcpy_s(imgsend->data, imgsend->len, img.bits(), imgsend->len);
-			//加入发送队列
-			queue_send.push_msg(imgsend);
+			imgsend->len = img.size();
+            qDebug() << "img size :" << img.size();
+            imgsend->data = (uchar*)malloc(imgsend->len);
+            if (imgsend->data == nullptr)
+            {
+                free(imgsend);
+				qDebug() << "send img error";
+                continue;
+            }
+            else
+            {
+                memset(imgsend->data, 0, imgsend->len);
+				memcpy_s(imgsend->data, imgsend->len, img.data(), img.size());
+				//加入发送队列
+				queue_send.push_msg(imgsend);
+            }
         }
     }
 }
@@ -65,13 +74,19 @@ void SendImg::run()
 //添加线程
 void SendImg::pushToQueue(QImage img)
 {
+    //压缩
+    QByteArray byte;
+    QBuffer buf(&byte);
+    img.save(&buf, "JPEG");
+    QByteArray ss = qCompress(byte);
+    QByteArray vv = ss.toBase64();
 //    qDebug() << "加入队列:" << QThread::currentThreadId();
     queue_lock.lock();
     while(imgqueue.size() > QUEUE_MAXSIZE)
     {
         queue_waitCond.wait(&queue_lock);
     }
-    imgqueue.push_back(img);
+    imgqueue.push_back(vv);
     queue_lock.unlock();
     queue_waitCond.wakeOne();
 }
