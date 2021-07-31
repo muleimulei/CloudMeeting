@@ -20,6 +20,13 @@ void MyTcpSocket::stopImmediately()
     _sockThread->wait();
 }
 
+void MyTcpSocket::closeSocket()
+{
+	if (_socktcp && _socktcp->isOpen())
+	{
+		_socktcp->close();
+	}
+}
 
 MyTcpSocket::MyTcpSocket(QObject *par):QThread(par)
 {
@@ -28,8 +35,7 @@ MyTcpSocket::MyTcpSocket(QObject *par):QThread(par)
 
     _sockThread = new QThread(); //发送数据线程
     this->moveToThread(_sockThread);
-	_sockThread->start(); // 开启链接，与接受
-
+	connect(_sockThread, SIGNAL(finished()), this, SLOT(closeSocket()));
     sendbuf =(uchar *) malloc(4 * MB);
     recvbuf = (uchar*)malloc(4 * MB);
     hasrecvive = 0;
@@ -451,6 +457,7 @@ bool MyTcpSocket::connectServer(QString ip, QString port, QIODevice::OpenModeFla
 
 bool MyTcpSocket::connectToServer(QString ip, QString port, QIODevice::OpenModeFlag flag)
 {
+	_sockThread->start(); // 开启链接，与接受
 	bool retVal;
 	QMetaObject::invokeMethod(this, "connectServer", Qt::BlockingQueuedConnection, Q_RETURN_ARG(bool, retVal),
 								Q_ARG(QString, ip), Q_ARG(QString, port), Q_ARG(QIODevice::OpenModeFlag, flag));
@@ -486,7 +493,6 @@ void MyTcpSocket::disconnectFromHost()
         _sockThread->wait();
     }
 
-    if(_socktcp->isOpen()) _socktcp->close();
     //清空 发送 队列，清空接受队列
     queue_send.clear();
     queue_recv.clear();

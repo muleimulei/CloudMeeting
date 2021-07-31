@@ -36,6 +36,7 @@ private:
 private slots:
     bool connectServer(QString, QString, QIODevice::OpenModeFlag);
     void sendData(MESG *);
+    void closeSocket();
 
 public slots:
     void recvFromSocket();
