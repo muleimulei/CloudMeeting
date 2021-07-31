@@ -147,7 +147,7 @@ void MyTcpSocket::sendData(MESG* send)
  */
 void MyTcpSocket::run()
 {
-    qDebug() << "send data" << QThread::currentThreadId();
+    //qDebug() << "send data" << QThread::currentThreadId();
     m_isCanRun = true; //标记可以运行
     /*
     *$_MSGType_IPV4_MSGSize_data_# //
@@ -194,7 +194,7 @@ qint64 MyTcpSocket::readn(char * buf, quint64 maxsize, int n)
 void MyTcpSocket::recvFromSocket()
 {
 
-    qDebug() << "recv data socket" <<QThread::currentThread();
+    //qDebug() << "recv data socket" <<QThread::currentThread();
     /*
     *$_msgtype_ip_size_data_#
     */
@@ -388,28 +388,37 @@ void MyTcpSocket::recvFromSocket()
 					}
 					else if (msgtype == AUDIO_RECV)
 					{
-						MESG* msg = (MESG*)malloc(sizeof(MESG));
-						if (msg == NULL)
+						//解压缩
+						QByteArray cc((char*)recvbuf + MSG_HEADER, data_size);
+						QByteArray rc = QByteArray::fromBase64(cc);
+						QByteArray rdc = qUncompress(rc);
+
+						if (rdc.size() > 0)
 						{
-							qDebug() << __LINE__ << "malloc failed";
-						}
-						else
-						{
-							memset(msg, 0, sizeof(MESG));
-							msg->msg_type = AUDIO_RECV;
-							msg->ip = ip;
-							msg->data = (uchar*)malloc(data_size);
-							if (msg->data == nullptr)
+							MESG* msg = (MESG*)malloc(sizeof(MESG));
+							if (msg == NULL)
 							{
-								qDebug() << __LINE__ << "malloc msg.data failed";
+								qDebug() << __LINE__ << "malloc failed";
 							}
 							else
 							{
-								memset(msg->data, 0, data_size);
-								memcpy_s(msg->data, data_size, recvbuf + MSG_HEADER, data_size);
-								msg->len = data_size;
+								memset(msg, 0, sizeof(MESG));
+								msg->msg_type = AUDIO_RECV;
 								msg->ip = ip;
-								audio_recv.push_msg(msg);
+
+								msg->data = (uchar*)malloc(rdc.size());
+								if (msg->data == nullptr)
+								{
+									qDebug() << __LINE__ << "malloc msg.data failed";
+								}
+								else
+								{
+									memset(msg->data, 0, rdc.size());
+									memcpy_s(msg->data, rdc.size(), rdc.data(), rdc.size());
+									msg->len = rdc.size();
+									msg->ip = ip;
+									audio_recv.push_msg(msg);
+								}
 							}
 						}
 					}

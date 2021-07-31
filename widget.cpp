@@ -131,10 +131,10 @@ void Widget::cameraImageCapture(QVideoFrame frame)
 
         QImage img =  videoImg.transformed(matrix, Qt::FastTransformation);
 
-//        if(partner.size() > 1)
-//        {
-            emit pushImg(img);
-//        }
+        if(partner.size() > 1)
+        {
+			emit pushImg(img);
+        }
 
         if(_mytcpSocket->getlocalip() == mainip)
         {
@@ -515,7 +515,7 @@ void Widget::datasolve(MESG *msg)
 
 Partner* Widget::addPartner(quint32 ip)
 {
-    //if (partner.contains(ip)) return NULL;
+	if (partner.contains(ip)) return NULL;
     Partner *p = new Partner(ui->scrollAreaWidgetContents ,ip);
     if (p == NULL)
     {

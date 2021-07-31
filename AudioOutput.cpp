@@ -116,12 +116,10 @@ void AudioOutput::run()
 		}
 		MESG* msg = audio_recv.pop_msg();
 		if (msg == NULL) continue;
-
 		{
 			QMutexLocker lock(&device_lock);
 			if (outputdevice != nullptr)
 			{
-
 				m_pcmDataBuffer.append((char*)msg->data, msg->len);
 
 				if (m_pcmDataBuffer.size() >= FRAME_LEN_500MS)

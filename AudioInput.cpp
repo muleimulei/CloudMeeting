@@ -72,16 +72,20 @@ void AudioInput::onreadyRead()
 	{
 		memset(msg, 0, sizeof(MESG));
 		msg->msg_type = AUDIO_SEND;
-		msg->data = (uchar*)malloc(totallen);
+		//Ñ¹ËõÊý¾Ý£¬×ªbase64
+		QByteArray rr(recvbuf, totallen);
+		QByteArray cc = qCompress(rr).toBase64();
+		msg->len = cc.size();
+
+		msg->data = (uchar*)malloc(msg->len);
 		if (msg->data == nullptr)
 		{
 			qWarning() << "malloc mesg.data fail";
 		}
 		else
 		{
-			memset(msg->data, 0, totallen);
-			memcpy_s(msg->data, totallen, recvbuf, totallen);
-			msg->len = totallen;
+			memset(msg->data, 0, msg->len);
+			memcpy_s(msg->data, msg->len, cc.data(), cc.size());
 			queue_send.push_msg(msg);
 		}
 	}
