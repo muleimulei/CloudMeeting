@@ -71,7 +71,7 @@ Widget::Widget(QWidget *parent)
     _textThread->start(); // 加入线程
     _sendText->start(); // 发送
 
-    connect(this, SIGNAL(PushText(MSG_TYPE, QString)), _sendText, SLOT(push_Text(MSG_TYPE, QString)));
+    connect(this, SIGNAL(PushText(MSG_TYPE,QString)), _sendText, SLOT(push_Text(MSG_TYPE,QString)));
     //-----------------------------------------------------------
 
     //配置摄像头
@@ -92,7 +92,7 @@ Widget::Widget(QWidget *parent)
 
     //------------------启动接收数据线程-------------------------
     _recvThread = new RecvSolve();
-    connect(_recvThread, SIGNAL(datarecv(MESG *)), this, SLOT(datasolve(MESG *)), Qt::BlockingQueuedConnection);
+    connect(_recvThread, SIGNAL(datarecv(MESG*)), this, SLOT(datasolve(MESG*)), Qt::BlockingQueuedConnection);
     _recvThread->start();
 
     //预览窗口重定向在MyVideoSurface
@@ -131,10 +131,10 @@ void Widget::cameraImageCapture(QVideoFrame frame)
 
         QImage img =  videoImg.transformed(matrix, Qt::FastTransformation);
 
-        if(partner.size() > 1)
-        {
+//        if(partner.size() > 1)
+//        {
             emit pushImg(img);
-        }
+//        }
 
         if(_mytcpSocket->getlocalip() == mainip)
         {
@@ -515,7 +515,7 @@ void Widget::datasolve(MESG *msg)
 
 Partner* Widget::addPartner(quint32 ip)
 {
-    if (partner.contains(ip)) return NULL;
+    //if (partner.contains(ip)) return NULL;
     Partner *p = new Partner(ui->scrollAreaWidgetContents ,ip);
     if (p == NULL)
     {
@@ -581,7 +581,7 @@ void Widget::clearPartner()
 
     //关闭传输音频
 	disconnect(_ainput, SLOT(setVolumn(int)));
-    disconnect(_ainputThread, SLOT(setVolumn(int)));
+    disconnect(_aoutput, SLOT(setVolumn(int)));
     //关闭音频播放与采集
 	_ainput->stopCollect();
     _aoutput->stopPlay();
@@ -597,7 +597,6 @@ void Widget::clearPartner()
     }
     ui->openVedio->setText(QString(OPENVIDEO).toUtf8());
     ui->openVedio->setDisabled(true);
-
 }
 
 void Widget::recvip(quint32 ip)

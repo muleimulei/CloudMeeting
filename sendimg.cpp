@@ -77,6 +77,7 @@ void SendImg::pushToQueue(QImage img)
     //压缩
     QByteArray byte;
     QBuffer buf(&byte);
+    buf.open(QIODevice::WriteOnly);
     img.save(&buf, "JPEG");
     QByteArray ss = qCompress(byte);
     QByteArray vv = ss.toBase64();

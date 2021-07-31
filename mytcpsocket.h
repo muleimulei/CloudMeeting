@@ -4,7 +4,7 @@
 #include <QThread>
 #include <QTcpSocket>
 #include <QMutex>
-
+#include "netheader.h"
 #ifndef MB
 #define MB (1024 * 1024)
 #endif
@@ -34,6 +34,8 @@ private:
     QMutex m_lock;
     volatile bool m_isCanRun;
 private slots:
+    bool connectServer(QString, QString, QIODevice::OpenModeFlag);
+    void sendData(MESG *);
 
 public slots:
     void recvFromSocket();
