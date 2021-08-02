@@ -22,6 +22,7 @@ SOURCES += \
     AudioInput.cpp \
     AudioOutput.cpp \
     hintdialog.cpp \
+    logqueue.cpp \
     main.cpp \
     mytcpsocket.cpp \
     myvideosurface.cpp \
@@ -37,6 +38,7 @@ HEADERS += \
     AudioInput.h \
     AudioOutput.h \
     hintdialog.h \
+    logqueue.h \
     mytcpsocket.h \
     myvideosurface.h \
     netheader.h \

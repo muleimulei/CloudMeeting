@@ -5,9 +5,9 @@
 #include <QMetaObject>
 #include <QMutexLocker>
 
-extern QUEUE_SEND queue_send;
-extern QUEUE_RECV queue_recv;
-extern QUEUE_RECV audio_recv;
+extern QUEUE_DATA<MESG> queue_send;
+extern QUEUE_DATA<MESG> queue_recv;
+extern QUEUE_DATA<MESG> audio_recv;
 
 void MyTcpSocket::stopImmediately()
 {
@@ -117,8 +117,7 @@ void MyTcpSocket::sendData(MESG* send)
 	{
 		if (ret == -1 && _socktcp->error() == QAbstractSocket::TemporaryError)
 		{
-			ret = 0;
-			continue;
+            ret = 0;
 		}
 		else if (ret == -1)
 		{

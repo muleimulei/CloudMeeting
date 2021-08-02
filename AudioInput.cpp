@@ -4,8 +4,8 @@
 #include <QDebug>
 #include <QThread>
 
-extern QUEUE_SEND queue_send;
-extern QUEUE_RECV queue_recv;
+extern QUEUE_DATA<MESG> queue_send;
+extern QUEUE_DATA<MESG> queue_recv;
 
 AudioInput::AudioInput(QObject *parent)
 	: QObject(parent)

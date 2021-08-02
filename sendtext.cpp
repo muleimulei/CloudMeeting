@@ -1,7 +1,7 @@
 #include "sendtext.h"
 #include <QDebug>
 
-extern QUEUE_SEND queue_send;
+extern QUEUE_DATA<MESG> queue_send;
 #ifndef WAITSECONDS
 #define WAITSECONDS 2
 #endif

@@ -10,6 +10,10 @@
 #define MB 1024*1024
 #endif
 
+#ifndef KB
+#define KB 1024
+#endif
+
 #ifndef WAITSECONDS
 #define WAITSECONDS 2
 #endif
@@ -67,14 +71,16 @@ struct MESG //消息结构体
 Q_DECLARE_METATYPE(MESG *);
 
 //-------------------------------
-struct QUEUE_SEND //发送队列
+
+template<class T>
+struct QUEUE_DATA //消息队列
 {
 private:
     QMutex send_queueLock;
     QWaitCondition send_queueCond;
-    QQueue<MESG *> send_queue;
+    QQueue<T*> send_queue;
 public:
-    void push_msg(MESG * msg)
+    void push_msg(T* msg)
     {
         send_queueLock.lock();
         while(send_queue.size() > QUEUE_MAXSIZE)
@@ -86,7 +92,7 @@ public:
         send_queueCond.wakeOne();
     }
 
-    MESG* pop_msg()
+    T* pop_msg()
     {
         send_queueLock.lock();
         while(send_queue.size() == 0)
@@ -98,7 +104,7 @@ public:
                 return NULL;
             }
         }
-        MESG * send = send_queue.front();
+        T* send = send_queue.front();
         send_queue.pop_front();
         send_queueLock.unlock();
         send_queueCond.wakeOne();
@@ -113,50 +119,19 @@ public:
     }
 };
 
-struct QUEUE_RECV //接收队列
+struct Log
 {
-private:
-    QMutex recv_queueLock;
-    QWaitCondition recv_queueCond;
-    QQueue<MESG *> recv_queue;
-public:
-    void push_msg(MESG * msg)
-    {
-        recv_queueLock.lock();
-        while(recv_queue.size() > QUEUE_MAXSIZE)
-        {
-            recv_queueCond.wait(&recv_queueLock);
-        }
-        recv_queue.push_back(msg);
-        recv_queueLock.unlock();
-        recv_queueCond.wakeOne();
-    }
-
-    MESG* pop_msg()
-    {
-        recv_queueLock.lock();
-        while(recv_queue.size() == 0)
-        {
-            bool f = recv_queueCond.wait(&recv_queueLock, WAITSECONDS * 1000);
-            if(f == false)
-            {
-                recv_queueLock.unlock();
-                return NULL;
-            }
-        }
-        MESG * send = recv_queue.front();
-        recv_queue.pop_front();
-        recv_queueLock.unlock();
-        recv_queueCond.wakeOne();
-        return send;
-    }
-
-    void clear()
-    {
-        recv_queueLock.lock();
-        recv_queue.clear();
-        recv_queueLock.unlock();
-    }
+    char *ptr;
+    int len;
 };
+
+
+
+void log_print(const char *, const char *, int, const char *, ...);
+#define WRITE_LOG(LOGTEXT, ...) do{ \
+    log_print(__FILE__, __FUNCTION__, __LINE__, LOGTEXT, ##__VA_ARGS__);\
+}while(0);
+
+
 
 #endif // NETHEADER_H

@@ -2,7 +2,7 @@
 #include <QMetaType>
 #include <QDebug>
 #include <QMutexLocker>
-extern QUEUE_RECV queue_recv;
+extern QUEUE_DATA<MESG> queue_recv;
 
 void RecvSolve::stopImmediately()
 {
@@ -15,7 +15,6 @@ RecvSolve::RecvSolve(QObject *par):QThread(par)
     qRegisterMetaType<MESG *>();
     m_isCanRun = true;
 }
-
 
 void RecvSolve::run()
 {

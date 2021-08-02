@@ -4,7 +4,7 @@
 #include <cstring>
 #include <QBuffer>
 
-extern QUEUE_SEND queue_send;
+extern QUEUE_DATA<MESG> queue_send;
 
 SendImg::SendImg(QObject *par):QThread(par)
 {

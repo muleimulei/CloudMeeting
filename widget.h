@@ -58,6 +58,7 @@ private:
     QThread* _ainputThread;
 
     AudioOutput* _aoutput;
+
 public:
     Widget(QWidget *parent = nullptr);
     ~Widget();

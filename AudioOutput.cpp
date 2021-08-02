@@ -7,7 +7,7 @@
 #ifndef FRAME_LEN_500MS
 #define FRAME_LEN_500MS 8000
 #endif
-extern QUEUE_RECV audio_recv; //接收队列(音频)
+extern QUEUE_DATA<MESG> audio_recv; //音频接收队列
 
 AudioOutput::AudioOutput(QObject *parent)
 	: QThread(parent)
