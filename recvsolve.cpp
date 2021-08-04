@@ -18,11 +18,16 @@ RecvSolve::RecvSolve(QObject *par):QThread(par)
 
 void RecvSolve::run()
 {
+    WRITE_LOG("start solving data thread: 0x%p", QThread::currentThreadId());
     for(;;)
     {
         {
             QMutexLocker locker(&m_lock);
-            if(m_isCanRun == false) return;
+            if (m_isCanRun == false)
+            {
+                WRITE_LOG("stop solving data thread: 0x%p", QThread::currentThreadId());
+                return;
+            }
         }
         MESG * msg = queue_recv.pop_msg();
         if(msg == NULL) continue;

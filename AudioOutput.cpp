@@ -59,6 +59,7 @@ QString AudioOutput::errorString()
 		return QString("AudioOutput No errors have occurred").toUtf8();
 	}
 }
+
 void AudioOutput::handleStateChanged(QAudio::State state)
 {
 	switch (state)
@@ -87,6 +88,7 @@ void AudioOutput::handleStateChanged(QAudio::State state)
 void AudioOutput::startPlay()
 {
 	if (audio->state() == QAudio::ActiveState) return;
+	WRITE_LOG("start playing audio");
 	outputdevice = audio->start();
 }
 
@@ -98,12 +100,15 @@ void AudioOutput::stopPlay()
 		outputdevice = nullptr;
 	}
 	audio->stop();
+	WRITE_LOG("stop playing audio");
 }
 
 void AudioOutput::run()
 {
 	is_canRun = true;
 	QByteArray m_pcmDataBuffer;
+
+	WRITE_LOG("start playing audio thread 0x%p", QThread::currentThreadId());
 	for (;;)
 	{
 		{
@@ -111,6 +116,7 @@ void AudioOutput::run()
 			if (is_canRun == false)
 			{
 				stopPlay();
+				WRITE_LOG("stop playing audio thread 0x%p", QThread::currentThreadId());
 				return;
 			}
 		}

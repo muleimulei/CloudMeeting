@@ -19,19 +19,19 @@
 #endif
 
 #ifndef OPENVIDEO
-#define OPENVIDEO "打开视频"
+#define OPENVIDEO "OPENVIDEO"
 #endif
 
 #ifndef CLOSEVIDEO
-#define CLOSEVIDEO "关闭视频"
+#define CLOSEVIDEO "CLOSEVIDEO"
 #endif
 
 #ifndef OPENAUDIO
-#define OPENAUDIO "打开音频"
+#define OPENAUDIO "OPENAUDIO"
 #endif
 
 #ifndef CLOSEAUDIO
-#define CLOSEAUDIO "关闭音频"
+#define CLOSEAUDIO "CLOSEAUDIO"
 #endif
 
 

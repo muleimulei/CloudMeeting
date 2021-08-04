@@ -39,6 +39,7 @@ AudioInput::~AudioInput()
 void AudioInput::startCollect()
 {
 	if (audio->state() == QAudio::ActiveState) return;
+	WRITE_LOG("start collecting audio");
 	inputdevice = audio->start();
 	connect(inputdevice, SIGNAL(readyRead()), this, SLOT(onreadyRead()));
 }
@@ -47,6 +48,7 @@ void AudioInput::stopCollect()
 	if (audio->state() == QAudio::StoppedState) return;
 	disconnect(this, SLOT(onreadyRead()));
 	audio->stop();
+	WRITE_LOG("stop collecting audio");
 	inputdevice = nullptr;
 }
 void AudioInput::onreadyRead()

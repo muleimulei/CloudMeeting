@@ -32,6 +32,7 @@ void SendText::push_Text(MSG_TYPE msgType, QString str)
 void SendText::run()
 {
     m_isCanRun = true;
+    WRITE_LOG("start sending text thread: 0x%p", QThread::currentThreadId());
     for(;;)
     {
         textqueue_lock.lock(); //加锁
@@ -44,6 +45,7 @@ void SendText::run()
                 if(m_isCanRun == false)
                 {
                     textqueue_lock.unlock();
+					WRITE_LOG("stop sending text thread: 0x%p", QThread::currentThreadId());
                     return;
                 }
             }
@@ -61,6 +63,7 @@ void SendText::run()
         MESG* send = (MESG*)malloc(sizeof(MESG));
         if (send == NULL)
         {
+            WRITE_LOG("malloc error");
             qDebug() << __FILE__  <<__LINE__ << "malloc fail";
             continue;
         }
@@ -83,6 +86,7 @@ void SendText::run()
                 
                 if (send->data == NULL)
                 {
+                    WRITE_LOG("malloc error");
                     qDebug() << __FILE__ << __LINE__ << "malloc fail";
                     continue;
                 }

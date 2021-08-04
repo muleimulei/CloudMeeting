@@ -1,9 +1,7 @@
-
 #include "netheader.h"
 #include "logqueue.h"
 #include <QDebug>
-#include <QDateTime>
-
+#include <time.h>
 
 
 QUEUE_DATA<MESG> queue_send; //文本，视频发送队列
@@ -32,21 +30,22 @@ void log_print(const char *filename, const char *funcname, int line, const char 
         else
         {
             memset(log->ptr, 0, 1 * KB);
-            QDateTime current_time = QDateTime::currentDateTime();
-            QString time = current_time.toString("yyyy-MM-dd hh:mm:ss ");
+            time_t t = time(NULL);
             int pos = 0;
-            memcpy_s(log->ptr + pos, 1 * KB - 2 - pos, time.data(), time.size());
-            pos += time.size();
+			int m = strftime(log->ptr + pos, KB - 2 - pos, "%F %H:%M:%S ", localtime(&t));
+			pos += m;
 
-            int m = snprintf(log->ptr + pos, 1 * KB - 2 - pos, "%s:%s::%d--", filename, funcname, line);
-            pos += m;
+			m = snprintf(log->ptr + pos, KB - 2 - pos, "%s:%s::%d!!!", filename, funcname, line);
+			pos += m;
 
-            va_list ap;
-            va_start(ap, fmt);
-            vsnprintf(log->ptr + pos, 1 * KB - 2 - pos, fmt, ap);
-            strcat_s(log->ptr + pos, 1 * KB - 2 - pos, "\n");
-            va_end(ap);
-            logqueue->pushLog(log);
+			va_list ap;
+			va_start(ap, fmt);
+			m = vsnprintf(log->ptr + pos, KB - 2 - pos, fmt, ap);
+			pos += m;
+			va_end(ap);
+			strcat(log->ptr + pos, "\n");
+			log->len = pos + 1;
+			logqueue->pushLog(log);
         }
     }
 }

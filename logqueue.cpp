@@ -34,7 +34,7 @@ void LogQueue::run()
         //----------------write to logfile-------------------
         qint64 hastowrite = log->len;
         qint64 ret = 0, haswrite = 0;
-        while ((ret = fwrite( (char*)log->ptr + haswrite, hastowrite - haswrite, 1, logfile)) < hastowrite)
+        while ((ret = fwrite( (char*)log->ptr + haswrite, 1 ,hastowrite - haswrite, logfile)) < hastowrite)
         {
             if (ret < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
             {

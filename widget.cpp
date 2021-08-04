@@ -24,13 +24,15 @@ Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
 {
-    qDebug() << "main: " <<QThread::currentThread();
-    qRegisterMetaType<MSG_TYPE>();
-    //创建TCPsocket
     //开启日志线程
     logqueue = new LogQueue();
     logqueue->start();
 
+    qDebug() << "main: " <<QThread::currentThread();
+    qRegisterMetaType<MSG_TYPE>();
+
+    WRITE_LOG("-------------------------Application Start---------------------------");
+    WRITE_LOG("main UI thread id: 0x%p", QThread::currentThreadId());
     //ui界面
     _createmeet = false;
     _openCamera = false;
@@ -208,6 +210,7 @@ Widget::~Widget()
         _aoutput->stopImmediately();
         _aoutput->wait();
     }
+    WRITE_LOG("-------------------Application End-----------------");
 
     //关闭日志
     if(logqueue->isRunning())
@@ -228,6 +231,7 @@ void Widget::on_createmeetBtn_clicked()
         ui->openVedio->setDisabled(true);
         ui->exitmeetBtn->setDisabled(true);
         emit PushText(CREATE_MEETING); //将 “创建会议"加入到发送队列
+        WRITE_LOG("create meeting");
     }
 }
 
@@ -266,11 +270,11 @@ void Widget::on_exitmeetBtn_clicked()
 
     ui->outlog->setText(tr("已退出会议"));
 
-
     ui->connServer->setDisabled(false);
     ui->groupBox->setTitle(QString("副屏幕"));
 
     QMessageBox::warning(this, "Information", "退出会议" , QMessageBox::Yes, QMessageBox::Yes);
+	WRITE_LOG("exit meeting");
     //-----------------------------------------
 
 }
@@ -280,6 +284,7 @@ void Widget::on_openVedio_clicked()
     if(_camera->status() == QCamera::ActiveStatus)
     {
         _camera->stop();
+        WRITE_LOG("close camera");
         if(_camera->error() == QCamera::NoError)
         {
             _imgThread->quit();
@@ -291,6 +296,7 @@ void Widget::on_openVedio_clicked()
     else
     {
         _camera->start(); //开启摄像头
+        WRITE_LOG("open camera");
         if(_camera->error() == QCamera::NoError)
         {
             _imgThread->start();
@@ -361,12 +367,14 @@ void Widget::on_connServer_clicked()
         ui->createmeetBtn->setDisabled(false);
         ui->exitmeetBtn->setDisabled(true);
         ui->joinmeetBtn->setDisabled(false);
+        WRITE_LOG("succeeed connecting to %s:%s", ip.toStdString().c_str(), port.toStdString().c_str());
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
         ui->connServer->setDisabled(true);
     }
     else
     {
         ui->outlog->setText("连接失败,请重新连接...");
+        WRITE_LOG("failed to connenct %s:%s", ip.toStdString().c_str(), port.toStdString().c_str());
         QMessageBox::warning(this, "Connection error", _mytcpSocket->errorString() , QMessageBox::Yes, QMessageBox::Yes);
     }
 }
@@ -394,26 +402,26 @@ void Widget::datasolve(MESG *msg)
             QMessageBox::information(this, "Room No", QString("房间号：%1").arg(roomno), QMessageBox::Yes, QMessageBox::Yes);
 
             ui->groupBox->setTitle(QString("房间号: %1").arg(roomno));
+            ui->outlog->setText(QString("房间号: %").arg(roomno) );
             _createmeet = true;
-
-    //        qDebug() <<"hello" << roomno;
             ui->exitmeetBtn->setDisabled(false);
             ui->openVedio->setDisabled(false);
             ui->joinmeetBtn->setDisabled(true);
 
+            WRITE_LOG("succeed creating room %d", roomno);
             //添加用户自己
             addPartner(_mytcpSocket->getlocalip());
             mainip = _mytcpSocket->getlocalip();
             ui->groupBox_2->setTitle(QHostAddress(mainip).toString());
             ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
-            
-
         }
         else
         {
             _createmeet = false;
             QMessageBox::information(this, "Room Information", QString("无可用房间"), QMessageBox::Yes, QMessageBox::Yes);
+            ui->outlog->setText(QString("无可用房间"));
             ui->createmeetBtn->setDisabled(false);
+            WRITE_LOG("no empty room");
         }
     }
     else if(msg->msg_type == JOIN_MEETING_RESPONSE)
@@ -423,6 +431,8 @@ void Widget::datasolve(MESG *msg)
         if(c == 0)
         {
             QMessageBox::information(this, "Meeting Error", tr("会议不存在") , QMessageBox::Yes, QMessageBox::Yes);
+            ui->outlog->setText(QString("会议不存在"));
+            WRITE_LOG("meeting not exist");
             ui->exitmeetBtn->setDisabled(true);
             ui->openVedio->setDisabled(true);
             ui->joinmeetBtn->setDisabled(false);
@@ -432,10 +442,14 @@ void Widget::datasolve(MESG *msg)
         else if(c == -1)
         {
             QMessageBox::warning(this, "Meeting information", "成员已满，无法加入" , QMessageBox::Yes, QMessageBox::Yes);
+            ui->outlog->setText(QString("成员已满，无法加入"));
+            WRITE_LOG("full room, cannot join");
         }
         else if (c > 0)
         {
             QMessageBox::warning(this, "Meeting information", "加入成功" , QMessageBox::Yes, QMessageBox::Yes);
+            ui->outlog->setText(QString("加入成功"));
+            WRITE_LOG("succeed joining room");
             //添加用户自己
             addPartner(_mytcpSocket->getlocalip());
             mainip = _mytcpSocket->getlocalip();
@@ -474,6 +488,7 @@ void Widget::datasolve(MESG *msg)
     {
         Partner* p = addPartner(msg->ip);
         if(p) p->setpic(QImage(":/myImage/1.jpg"));
+        ui->outlog->setText(QString("%1 join meeting").arg(QHostAddress(msg->ip).toString()));
     }
     else if(msg->msg_type == PARTNER_EXIT)
     {
@@ -482,6 +497,7 @@ void Widget::datasolve(MESG *msg)
         {
             ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
         }
+        ui->outlog->setText(QString("%1 exit meeting").arg(QHostAddress(msg->ip).toString()));
     }
     else if (msg->msg_type == PARTNER_JOIN2)
     {

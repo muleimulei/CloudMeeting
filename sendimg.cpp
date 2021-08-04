@@ -14,6 +14,7 @@ SendImg::SendImg(QObject *par):QThread(par)
 //消费线程
 void SendImg::run()
 {
+    WRITE_LOG("start sending picture thread: 0x%p", QThread::currentThreadId());
     m_isCanRun = true;
     for(;;)
     {
@@ -29,6 +30,7 @@ void SendImg::run()
 				if (m_isCanRun == false)
 				{
                     queue_lock.unlock();
+					WRITE_LOG("stop sending picture thread: 0x%p", QThread::currentThreadId());
 					return;
 				}
 			}
@@ -45,6 +47,7 @@ void SendImg::run()
         MESG* imgsend = (MESG*)malloc(sizeof(MESG));
         if (imgsend == NULL)
         {
+            WRITE_LOG("malloc error");
             qDebug() << "malloc imgsend fail";
         }
         else
@@ -57,6 +60,7 @@ void SendImg::run()
             if (imgsend->data == nullptr)
             {
                 free(imgsend);
+				WRITE_LOG("malloc error");
 				qDebug() << "send img error";
                 continue;
             }
