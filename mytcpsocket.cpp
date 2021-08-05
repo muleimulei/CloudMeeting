@@ -70,7 +70,12 @@ void MyTcpSocket::errorDetect(QAbstractSocket::SocketError error)
 
 void MyTcpSocket::sendData(MESG* send)
 {
-
+	if (_socktcp->state() == QAbstractSocket::UnconnectedState)
+	{
+		if (send->data) free(send->data);
+		if (send) free(send);
+		return;
+	}
 	quint64 bytestowrite = 0;
 	//构造消息头
 	sendbuf[bytestowrite++] = '$';

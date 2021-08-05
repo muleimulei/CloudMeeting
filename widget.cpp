@@ -309,7 +309,7 @@ void Widget::on_openVedio_clicked()
 
 void Widget::on_openAudio_clicked()
 {
-    if (!_createmeet || !_joinmeet) return;
+    if (!_createmeet && !_joinmeet) return;
     if (ui->openAudio->text().toUtf8() == QString(OPENAUDIO).toUtf8())
     {
         emit startAudio();
@@ -515,6 +515,7 @@ void Widget::datasolve(MESG *msg)
 			Partner* p = addPartner(ip);
 			if (p) p->setpic(QImage(":/myImage/1.jpg"));
         }
+        ui->openVedio->setDisabled(false);
     }
     else if(msg->msg_type == RemoteHostClosedError)
     {

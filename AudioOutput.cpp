@@ -4,8 +4,8 @@
 #include <QDebug>
 #include <QHostAddress>
 
-#ifndef FRAME_LEN_500MS
-#define FRAME_LEN_500MS 8000
+#ifndef FRAME_LEN_125MS
+#define FRAME_LEN_125MS 1900
 #endif
 extern QUEUE_DATA<MESG> audio_recv; //音频接收队列
 
@@ -128,10 +128,10 @@ void AudioOutput::run()
 			{
 				m_pcmDataBuffer.append((char*)msg->data, msg->len);
 
-				if (m_pcmDataBuffer.size() >= FRAME_LEN_500MS)
+				if (m_pcmDataBuffer.size() >= FRAME_LEN_125MS)
 				{
 					//写入音频数据
-					qint64 ret = outputdevice->write(m_pcmDataBuffer.data(), FRAME_LEN_500MS);
+					qint64 ret = outputdevice->write(m_pcmDataBuffer.data(), FRAME_LEN_125MS);
 					if (ret < 0)
 					{
 						qDebug() << outputdevice->errorString();

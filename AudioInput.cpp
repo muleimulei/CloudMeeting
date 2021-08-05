@@ -43,6 +43,7 @@ void AudioInput::startCollect()
 	inputdevice = audio->start();
 	connect(inputdevice, SIGNAL(readyRead()), this, SLOT(onreadyRead()));
 }
+
 void AudioInput::stopCollect()
 {
 	if (audio->state() == QAudio::StoppedState) return;
@@ -51,13 +52,13 @@ void AudioInput::stopCollect()
 	WRITE_LOG("stop collecting audio");
 	inputdevice = nullptr;
 }
+
 void AudioInput::onreadyRead()
 {
 	static int num = 0, totallen  = 0;
 	if (inputdevice == nullptr) return;
 	int len = inputdevice->read(recvbuf + totallen, 2 * MB - totallen);
-	qDebug() << "len = " << len;
-	if (num < 10)
+	if (num < 2)
 	{
 		totallen += len;
 		num++;
@@ -119,7 +120,6 @@ QString AudioInput::errorString()
 	}
 }
 
-
 void AudioInput::handleStateChanged(QAudio::State newState)
 {
 	switch (newState)
@@ -144,7 +144,9 @@ void AudioInput::handleStateChanged(QAudio::State newState)
 			break;
 	}
 }
+
 void AudioInput::setVolumn(int v)
 {
+	qDebug() << v;
 	audio->setVolume(v / 100.0);
 }
