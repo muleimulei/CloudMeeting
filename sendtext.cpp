@@ -71,11 +71,11 @@ void SendText::run()
         {
 			memset(send, 0, sizeof(MESG));
 
-			if (text.type == CREATE_MEETING)
+			if (text.type == CREATE_MEETING || text.type == CLOSE_CAMERA)
 			{
 				send->len = 0;
 				send->data = NULL;
-				send->msg_type = CREATE_MEETING;
+				send->msg_type = text.type;
                 queue_send.push_msg(send);
 			}
 			else if (text.type == JOIN_MEETING)

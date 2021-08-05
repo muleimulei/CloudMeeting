@@ -84,15 +84,9 @@ void MyTcpSocket::sendData(MESG* send)
 	qToBigEndian<quint32>(ip, sendbuf + bytestowrite);
 	bytestowrite += 4;
 
-	if (send->msg_type == CREATE_MEETING || send->msg_type == AUDIO_SEND) //发送音频
+	if (send->msg_type == CREATE_MEETING || send->msg_type == AUDIO_SEND || send->msg_type == CLOSE_CAMERA || send->msg_type == IMG_SEND) //创建会议,发送音频,关闭摄像头，发送图片
 	{
 		//发送数据大小
-		qToBigEndian<quint32>(send->len, sendbuf + bytestowrite);
-		bytestowrite += 4;
-	}
-	else if (send->msg_type == IMG_SEND)
-	{
-		qDebug() << "send img";
 		qToBigEndian<quint32>(send->len, sendbuf + bytestowrite);
 		bytestowrite += 4;
 	}
@@ -327,7 +321,7 @@ void MyTcpSocket::recvFromSocket()
 						}
 					}
 				}
-				else if (msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT || msgtype == AUDIO_RECV)
+				else if (msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT || msgtype == AUDIO_RECV || msgtype == CLOSE_CAMERA)
 				{
 					//read ipv4
 					quint32 ip;
@@ -370,7 +364,7 @@ void MyTcpSocket::recvFromSocket()
 							}
 						}
 					}
-					else if (msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT)
+					else if (msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT || msgtype == CLOSE_CAMERA)
 					{
 						MESG* msg = (MESG*)malloc(sizeof(MESG));
 						if (msg == NULL)

@@ -290,6 +290,7 @@ void Widget::on_openVedio_clicked()
             _imgThread->quit();
             _imgThread->wait();
             ui->openVedio->setText("开启摄像头");
+			emit PushText(CLOSE_CAMERA);
         }
         closeImg(_mytcpSocket->getlocalip());
     }
@@ -498,6 +499,10 @@ void Widget::datasolve(MESG *msg)
             ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
         }
         ui->outlog->setText(QString("%1 exit meeting").arg(QHostAddress(msg->ip).toString()));
+    }
+    else if (msg->msg_type == CLOSE_CAMERA)
+    {
+	    closeImg(msg->ip);
     }
     else if (msg->msg_type == PARTNER_JOIN2)
     {

@@ -19,19 +19,19 @@
 #endif
 
 #ifndef OPENVIDEO
-#define OPENVIDEO "OPENVIDEO"
+#define OPENVIDEO "打开视频"
 #endif
 
 #ifndef CLOSEVIDEO
-#define CLOSEVIDEO "CLOSEVIDEO"
+#define CLOSEVIDEO "关闭视频"
 #endif
 
 #ifndef OPENAUDIO
-#define OPENAUDIO "OPENAUDIO"
+#define OPENAUDIO "打开音频"
 #endif
 
 #ifndef CLOSEAUDIO
-#define CLOSEAUDIO "CLOSEAUDIO"
+#define CLOSEAUDIO "关闭音频"
 #endif
 
 
@@ -50,6 +50,7 @@ enum MSG_TYPE
     CREATE_MEETING,
     EXIT_MEETING,
     JOIN_MEETING,
+    CLOSE_CAMERA,
 
     CREATE_MEETING_RESPONSE = 20,
     PARTNER_EXIT = 21,
