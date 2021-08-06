@@ -21,6 +21,7 @@ win32-msvc*:QMAKE_CXXFLAGS += /wd"4819" /utf-8
 SOURCES += \
     AudioInput.cpp \
     AudioOutput.cpp \
+    chatmessage.cpp \
     hintdialog.cpp \
     logqueue.cpp \
     main.cpp \
@@ -37,6 +38,7 @@ SOURCES += \
 HEADERS += \
     AudioInput.h \
     AudioOutput.h \
+    chatmessage.h \
     hintdialog.h \
     logqueue.h \
     mytcpsocket.h \

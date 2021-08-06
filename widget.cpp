@@ -16,6 +16,7 @@
 #include <QHostAddress>
 #include <QTextCodec>
 #include "logqueue.h"
+#include <QDateTime>
 QRect  Widget::pos = QRect(-1, -1, -1, -1);
 
 extern LogQueue *logqueue;
@@ -47,11 +48,14 @@ Widget::Widget(QWidget *parent)
     this->setGeometry(Widget::pos);
     this->setMinimumSize(QSize(Widget::pos.width() * 0.7, Widget::pos.height() * 0.7));
     this->setMaximumSize(QSize(Widget::pos.width(), Widget::pos.height()));
+
+
     ui->exitmeetBtn->setDisabled(true);
     ui->joinmeetBtn->setDisabled(true);
     ui->createmeetBtn->setDisabled(true);
     ui->openAudio->setDisabled(true);
     ui->openVedio->setDisabled(true);
+//    ui->sendmsg->setDisabled(true);
     mainip = 0; //主屏幕显示的用户IP图像
 
     //-------------------局部线程----------------------------
@@ -124,8 +128,16 @@ Widget::Widget(QWidget *parent)
     connect(_aoutput, SIGNAL(speaker(QString)), this, SLOT(speaks(QString)));
     //设置滚动条
     ui->scrollArea->verticalScrollBar()->setStyleSheet("QScrollBar:vertical { width:8px; background:rgba(0,0,0,0%); margin:0px,0px,0px,0px; padding-top:9px; padding-bottom:9px; } QScrollBar::handle:vertical { width:8px; background:rgba(0,0,0,25%); border-radius:4px; min-height:20; } QScrollBar::handle:vertical:hover { width:8px; background:rgba(0,0,0,50%); border-radius:4px; min-height:20; } QScrollBar::add-line:vertical { height:9px;width:8px; border-image:url(:/images/a/3.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical { height:9px;width:8px; border-image:url(:/images/a/1.png); subcontrol-position:top; } QScrollBar::add-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/4.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/2.png); subcontrol-position:top; } QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical { background:rgba(0,0,0,10%); border-radius:4px; }");
+    ui->listWidget->setStyleSheet("QScrollBar:vertical { width:8px; background:rgba(0,0,0,0%); margin:0px,0px,0px,0px; padding-top:9px; padding-bottom:9px; } QScrollBar::handle:vertical { width:8px; background:rgba(0,0,0,25%); border-radius:4px; min-height:20; } QScrollBar::handle:vertical:hover { width:8px; background:rgba(0,0,0,50%); border-radius:4px; min-height:20; } QScrollBar::add-line:vertical { height:9px;width:8px; border-image:url(:/images/a/3.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical { height:9px;width:8px; border-image:url(:/images/a/1.png); subcontrol-position:top; } QScrollBar::add-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/4.png); subcontrol-position:bottom; } QScrollBar::sub-line:vertical:hover { height:9px;width:8px; border-image:url(:/images/a/2.png); subcontrol-position:top; } QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical { background:rgba(0,0,0,10%); border-radius:4px; }");
+
+    QFont te_font = this->font();
+    te_font.setFamily("MicrosoftYaHei");
+    te_font.setPointSize(12);
+
+    ui->listWidget->setFont(te_font);
 
 }
+
 
 void Widget::cameraImageCapture(QVideoFrame frame)
 {
@@ -271,7 +283,8 @@ void Widget::on_exitmeetBtn_clicked()
     ui->outlog->setText(tr("已退出会议"));
 
     ui->connServer->setDisabled(false);
-    ui->groupBox->setTitle(QString("副屏幕"));
+    ui->groupBox_2->setTitle(QString("主屏幕"));
+//    ui->groupBox->setTitle(QString("副屏幕"));
 
     QMessageBox::warning(this, "Information", "退出会议" , QMessageBox::Yes, QMessageBox::Yes);
 	WRITE_LOG("exit meeting");
@@ -402,8 +415,8 @@ void Widget::datasolve(MESG *msg)
         {
             QMessageBox::information(this, "Room No", QString("房间号：%1").arg(roomno), QMessageBox::Yes, QMessageBox::Yes);
 
-            ui->groupBox->setTitle(QString("房间号: %1").arg(roomno));
-            ui->outlog->setText(QString("房间号: %").arg(roomno) );
+            ui->groupBox_2->setTitle(QString("主屏幕(房间号: %1)").arg(roomno));
+            ui->outlog->setText(QString("创建成功 房间号: %1").arg(roomno) );
             _createmeet = true;
             ui->exitmeetBtn->setDisabled(false);
             ui->openVedio->setDisabled(false);
@@ -683,4 +696,56 @@ void Widget::on_horizontalSlider_valueChanged(int value)
 void Widget::speaks(QString ip)
 {
     ui->outlog->setText(QString(ip + " 正在说话").toUtf8());
+}
+
+void Widget::on_sendmsg_clicked()
+{
+    QString msg = ui->plainTextEdit->toPlainText();
+    if(msg.size() == 0)
+    {
+        qDebug() << "empty";
+        return;
+    }
+    ui->plainTextEdit->setPlainText("");
+    QString time = QString::number(QDateTime::currentDateTimeUtc().toTime_t());
+    ChatMessage *message = new ChatMessage(ui->listWidget);
+    QListWidgetItem *item = new QListWidgetItem();
+    dealMessageTime(time);
+    dealMessage(message, item, msg, time, ChatMessage::User_Me);
+}
+
+void Widget::dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, ChatMessage::User_Type type)
+{
+    ui->listWidget->addItem(item);
+    messageW->setFixedWidth(ui->listWidget->width());
+    QSize size = messageW->fontRect(text);
+    item->setSizeHint(size);
+    messageW->setText(text, time, size, type);
+    ui->listWidget->setItemWidget(item, messageW);
+}
+
+void Widget::dealMessageTime(QString curMsgTime)
+{
+    bool isShowTime = false;
+    if(ui->listWidget->count() > 0) {
+        QListWidgetItem* lastItem = ui->listWidget->item(ui->listWidget->count() - 1);
+        ChatMessage* messageW = (ChatMessage *)ui->listWidget->itemWidget(lastItem);
+        int lastTime = messageW->time().toInt();
+        int curTime = curMsgTime.toInt();
+        qDebug() << "curTime lastTime:" << curTime - lastTime;
+        isShowTime = ((curTime - lastTime) > 60); // 两个消息相差一分钟
+//        isShowTime = true;
+    } else {
+        isShowTime = true;
+    }
+    if(isShowTime) {
+        ChatMessage* messageTime = new ChatMessage(ui->listWidget->parentWidget());
+        QListWidgetItem* itemTime = new QListWidgetItem(ui->listWidget);
+
+        QSize size = QSize(ui->listWidget->width() , 40);
+        messageTime->resize(size);
+        itemTime->setSizeHint(size);
+        messageTime->setText(curMsgTime, curMsgTime, size, ChatMessage::User_Time);
+        ui->listWidget->setItemWidget(itemTime, messageTime);
+    }
 }

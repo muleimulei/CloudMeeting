@@ -13,6 +13,9 @@
 #include "netheader.h"
 #include <QMap>
 #include "AudioOutput.h"
+#include "chatmessage.h"
+
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
@@ -20,7 +23,7 @@ QT_END_NAMESPACE
 class QCameraImageCapture;
 class MyVideoSurface;
 class SendImg;
-
+class QListWidgetItem;
 class Widget : public QWidget
 {
     Q_OBJECT
@@ -53,10 +56,12 @@ private:
     void clearPartner(); //退出会议，或者会议结束
     void closeImg(quint32); //根据IP重置图像
 
+    void dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, ChatMessage::User_Type type); //用户发送文本
+    void dealMessageTime(QString curMsgTime); //处理时间
+
     //音频
     AudioInput* _ainput;
     QThread* _ainputThread;
-
     AudioOutput* _aoutput;
 
 public:
@@ -80,6 +85,8 @@ private slots:
 
     void on_horizontalSlider_valueChanged(int value);
     void speaks(QString);
+
+    void on_sendmsg_clicked();
 
 signals:
     void pushImg(QImage);
