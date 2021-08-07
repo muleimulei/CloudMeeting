@@ -20,9 +20,9 @@ ChatMessage::ChatMessage(QWidget *parent) : QWidget(parent)
     m_loadingMovie->setFileName(":/myImage/3.gif");
     m_loading = new QLabel(this);
     m_loading->setMovie(m_loadingMovie);
-    m_loading->resize(16,16);
+    m_loading->setScaledContents(true);
+    m_loading->resize(40,40);
     m_loading->setAttribute(Qt::WA_TranslucentBackground , true);
-    m_loading->setAutoFillBackground(false);
 }
 
 void ChatMessage::setTextSuccess()
@@ -32,16 +32,18 @@ void ChatMessage::setTextSuccess()
     m_isSending = true;
 }
 
-void ChatMessage::setText(QString text, QString time, QSize allSize, ChatMessage::User_Type userType)
+void ChatMessage::setText(QString text, QString time, QSize allSize, QString ip,ChatMessage::User_Type userType)
 {
     m_msg = text;
     m_userType = userType;
     m_time = time;
-    m_curTime = QDateTime::fromTime_t(time.toInt()).toString("hh:mm");
+    m_curTime = QDateTime::fromTime_t(time.toInt()).toString("ddd hh:mm");
     m_allSize = allSize;
+    m_ip = ip;
     if(userType == User_Me) {
         if(!m_isSending) {
             m_loading->move(m_kuangRightRect.x() - m_loading->width() - 10, m_kuangRightRect.y()+m_kuangRightRect.height()/2- m_loading->height()/2);
+//            m_loading->move(0, 0);
             m_loading->show();
             m_loadingMovie->start();
         }
@@ -66,31 +68,37 @@ QSize ChatMessage::fontRect(QString str)
     m_kuangWidth = this->width() - kuangTMP - 2*(iconWH+iconSpaceW+iconRectW);
     m_textWidth = m_kuangWidth - 2*textSpaceRect;
     m_spaceWid = this->width() - m_textWidth;
-    m_iconLeftRect = QRect(iconSpaceW, iconTMPH, iconWH, iconWH);
-    m_iconRightRect = QRect(this->width() - iconSpaceW - iconWH, iconTMPH, iconWH, iconWH);
+    m_iconLeftRect = QRect(iconSpaceW, iconTMPH + 10, iconWH, iconWH);
+    m_iconRightRect = QRect(this->width() - iconSpaceW - iconWH, iconTMPH + 10, iconWH, iconWH);
+
 
     QSize size = getRealString(m_msg); // 整个的size
 
     qDebug() << "fontRect Size:" << size;
     int hei = size.height() < minHei ? minHei : size.height();
 
-    m_sanjiaoLeftRect = QRect(iconWH+iconSpaceW+iconRectW, m_lineHeight/2, sanJiaoW, hei - m_lineHeight);
-    m_sanjiaoRightRect = QRect(this->width() - iconRectW - iconWH - iconSpaceW - sanJiaoW, m_lineHeight/2, sanJiaoW, hei - m_lineHeight);
+    m_sanjiaoLeftRect = QRect(iconWH+iconSpaceW+iconRectW, m_lineHeight/2 + 10, sanJiaoW, hei - m_lineHeight);
+    m_sanjiaoRightRect = QRect(this->width() - iconRectW - iconWH - iconSpaceW - sanJiaoW, m_lineHeight/2+10, sanJiaoW, hei - m_lineHeight);
 
     if(size.width() < (m_textWidth+m_spaceWid)) {
-        m_kuangLeftRect.setRect(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), m_lineHeight/4*3, size.width()-m_spaceWid+2*textSpaceRect, hei-m_lineHeight);
+        m_kuangLeftRect.setRect(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), m_lineHeight/4*3 + 10, size.width()-m_spaceWid+2*textSpaceRect, hei-m_lineHeight);
         m_kuangRightRect.setRect(this->width() - size.width() + m_spaceWid - 2*textSpaceRect - iconWH - iconSpaceW - iconRectW - sanJiaoW,
-                                 m_lineHeight/4*3, size.width()-m_spaceWid+2*textSpaceRect, hei-m_lineHeight);
+                                 m_lineHeight/4*3 + 10, size.width()-m_spaceWid+2*textSpaceRect, hei-m_lineHeight);
     } else {
-        m_kuangLeftRect.setRect(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), m_lineHeight/4*3, m_kuangWidth, hei-m_lineHeight);
-        m_kuangRightRect.setRect(iconWH + kuangTMP + iconSpaceW + iconRectW - sanJiaoW, m_lineHeight/4*3, m_kuangWidth, hei-m_lineHeight);
+        m_kuangLeftRect.setRect(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), m_lineHeight/4*3 + 10, m_kuangWidth, hei-m_lineHeight);
+        m_kuangRightRect.setRect(iconWH + kuangTMP + iconSpaceW + iconRectW - sanJiaoW, m_lineHeight/4*3 + 10, m_kuangWidth, hei-m_lineHeight);
     }
-    m_textLeftRect.setRect(m_kuangLeftRect.x()+textSpaceRect,m_kuangLeftRect.y()+iconTMPH,
-                           m_kuangLeftRect.width()-2*textSpaceRect,m_kuangLeftRect.height()-2*iconTMPH);
-    m_textRightRect.setRect(m_kuangRightRect.x()+textSpaceRect,m_kuangRightRect.y()+iconTMPH,
-                            m_kuangRightRect.width()-2*textSpaceRect,m_kuangRightRect.height()-2*iconTMPH);
+    m_textLeftRect.setRect(m_kuangLeftRect.x()+textSpaceRect, m_kuangLeftRect.y()+iconTMPH,
+                           m_kuangLeftRect.width()-2*textSpaceRect, m_kuangLeftRect.height()-2*iconTMPH);
+    m_textRightRect.setRect(m_kuangRightRect.x()+textSpaceRect, m_kuangRightRect.y()+iconTMPH,
+                            m_kuangRightRect.width()-2*textSpaceRect, m_kuangRightRect.height()-2*iconTMPH);
 
-    return QSize(size.width(), hei);
+
+    m_ipLeftRect.setRect(m_kuangLeftRect.x(), m_kuangLeftRect.y()+iconTMPH - 20,
+                           m_kuangLeftRect.width()-2*textSpaceRect + iconWH*2, 20);
+    m_ipRightRect.setRect(m_kuangRightRect.x(), m_kuangRightRect.y()+iconTMPH - 30,
+                            m_kuangRightRect.width()-2*textSpaceRect + iconWH*2 , 20);
+    return QSize(size.width(), hei + 15);
 }
 
 QSize ChatMessage::getRealString(QString src)
@@ -152,7 +160,7 @@ void ChatMessage::paintEvent(QPaintEvent *event)
         //框加边
         QColor col_KuangB(234, 234, 234);
         painter.setBrush(QBrush(col_KuangB));
-        painter.drawRoundedRect(m_kuangLeftRect.x()-1,m_kuangLeftRect.y()-1,m_kuangLeftRect.width()+2,m_kuangLeftRect.height()+2,4,4);
+        painter.drawRoundedRect(m_kuangLeftRect.x()-1,m_kuangLeftRect.y()-1 + 10,m_kuangLeftRect.width()+2,m_kuangLeftRect.height()+2,4,4);
         //框
         QColor col_Kuang(255,255,255);
         painter.setBrush(QBrush(col_Kuang));
@@ -160,9 +168,9 @@ void ChatMessage::paintEvent(QPaintEvent *event)
 
         //三角
         QPointF points[3] = {
-            QPointF(m_sanjiaoLeftRect.x(), 30),
-            QPointF(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), 25),
+            QPointF(m_sanjiaoLeftRect.x(), 40),
             QPointF(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), 35),
+            QPointF(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), 45),
         };
         QPen pen;
         pen.setColor(col_Kuang);
@@ -175,6 +183,17 @@ void ChatMessage::paintEvent(QPaintEvent *event)
         painter.setPen(penSanJiaoBian);
         painter.drawLine(QPointF(m_sanjiaoLeftRect.x() - 1, 30), QPointF(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), 24));
         painter.drawLine(QPointF(m_sanjiaoLeftRect.x() - 1, 30), QPointF(m_sanjiaoLeftRect.x()+m_sanjiaoLeftRect.width(), 36));
+
+        //ip
+        //ip
+        QPen penIp;
+        penIp.setColor(Qt::darkGray);
+        painter.setPen(penIp);
+        QFont f = this->font();
+        f.setPointSize(10);
+        QTextOption op(Qt::AlignHCenter | Qt::AlignVCenter);
+        painter.setFont(f);
+        painter.drawText(m_ipLeftRect, m_ip, op);
 
         //内容
         QPen penText;
@@ -196,14 +215,25 @@ void ChatMessage::paintEvent(QPaintEvent *event)
 
         //三角
         QPointF points[3] = {
-            QPointF(m_sanjiaoRightRect.x()+m_sanjiaoRightRect.width(), 30),
-            QPointF(m_sanjiaoRightRect.x(), 25),
+            QPointF(m_sanjiaoRightRect.x()+m_sanjiaoRightRect.width(), 40),
             QPointF(m_sanjiaoRightRect.x(), 35),
+            QPointF(m_sanjiaoRightRect.x(), 45),
         };
         QPen pen;
         pen.setColor(col_Kuang);
         painter.setPen(pen);
         painter.drawPolygon(points, 3);
+
+
+        //ip
+        QPen penIp;
+        penIp.setColor(Qt::black);
+        painter.setPen(penIp);
+        QFont f = this->font();
+        f.setPointSize(10);
+        QTextOption op(Qt::AlignHCenter | Qt::AlignVCenter);
+        painter.setFont(f);
+        painter.drawText(m_ipRightRect, m_ip, op);
 
         //内容
         QPen penText;

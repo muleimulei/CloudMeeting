@@ -1,7 +1,6 @@
 #include "widget.h"
 #include "ui_widget.h"
 #include "screen.h"
-#include "hintdialog.h"
 #include <QCamera>
 #include <QCameraViewfinder>
 #include <QCameraImageCapture>
@@ -17,6 +16,8 @@
 #include <QTextCodec>
 #include "logqueue.h"
 #include <QDateTime>
+#include <QCompleter>
+#include <QStringListModel>
 QRect  Widget::pos = QRect(-1, -1, -1, -1);
 
 extern LogQueue *logqueue;
@@ -136,6 +137,10 @@ Widget::Widget(QWidget *parent)
 
     ui->listWidget->setFont(te_font);
 
+
+    iplist << "192.168.1.1" << "192.168.1.112" << "192.167.34.12";
+
+    ui->plainTextEdit->setCompleter(iplist);
 }
 
 
@@ -711,16 +716,19 @@ void Widget::on_sendmsg_clicked()
     ChatMessage *message = new ChatMessage(ui->listWidget);
     QListWidgetItem *item = new QListWidgetItem();
     dealMessageTime(time);
-    dealMessage(message, item, msg, time, ChatMessage::User_Me);
+    dealMessage(message, item, msg, time, "192.169.1.111" ,ChatMessage::User_Me);
+
+//    emit PushText(TEXT_SEND, msg);
 }
 
-void Widget::dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, ChatMessage::User_Type type)
+void Widget::dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, QString ip ,ChatMessage::User_Type type)
 {
     ui->listWidget->addItem(item);
     messageW->setFixedWidth(ui->listWidget->width());
     QSize size = messageW->fontRect(text);
     item->setSizeHint(size);
-    messageW->setText(text, time, size, type);
+//    qDebug() << messageW->width() <<"size: " << size;
+    messageW->setText(text, time, size, ip, type);
     ui->listWidget->setItemWidget(item, messageW);
 }
 
@@ -739,13 +747,13 @@ void Widget::dealMessageTime(QString curMsgTime)
         isShowTime = true;
     }
     if(isShowTime) {
-        ChatMessage* messageTime = new ChatMessage(ui->listWidget->parentWidget());
-        QListWidgetItem* itemTime = new QListWidgetItem(ui->listWidget);
+        ChatMessage* messageTime = new ChatMessage(ui->listWidget);
+        QListWidgetItem* itemTime = new QListWidgetItem();
 
         QSize size = QSize(ui->listWidget->width() , 40);
         messageTime->resize(size);
         itemTime->setSizeHint(size);
-        messageTime->setText(curMsgTime, curMsgTime, size, ChatMessage::User_Time);
+        messageTime->setText(curMsgTime, curMsgTime, size);
         ui->listWidget->setItemWidget(itemTime, messageTime);
     }
 }

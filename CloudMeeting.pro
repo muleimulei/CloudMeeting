@@ -22,10 +22,10 @@ SOURCES += \
     AudioInput.cpp \
     AudioOutput.cpp \
     chatmessage.cpp \
-    hintdialog.cpp \
     logqueue.cpp \
     main.cpp \
     mytcpsocket.cpp \
+    mytextedit.cpp \
     myvideosurface.cpp \
     netheader.cpp \
     partner.cpp \
@@ -39,9 +39,9 @@ HEADERS += \
     AudioInput.h \
     AudioOutput.h \
     chatmessage.h \
-    hintdialog.h \
     logqueue.h \
     mytcpsocket.h \
+    mytextedit.h \
     myvideosurface.h \
     netheader.h \
     partner.h \
@@ -52,7 +52,6 @@ HEADERS += \
     widget.h
 
 FORMS += \
-    hintdialog.ui \
     widget.ui
 
 # Default rules for deployment.

@@ -17,7 +17,7 @@ public:
         User_Time,  //时间
     };
     void setTextSuccess();
-    void setText(QString text, QString time, QSize allSize, User_Type userType);
+    void setText(QString text, QString time, QSize allSize, QString ip = "",  User_Type userType = User_Time);
 
     QSize getRealString(QString src);
     QSize fontRect(QString str);
@@ -31,6 +31,7 @@ private:
     QString m_msg;
     QString m_time;
     QString m_curTime;
+    QString m_ip;
 
     QSize m_allSize;
     User_Type m_userType = User_System;
@@ -40,6 +41,8 @@ private:
     int m_spaceWid;
     int m_lineHeight;
 
+    QRect m_ipLeftRect;
+    QRect m_ipRightRect;
     QRect m_iconLeftRect;
     QRect m_iconRightRect;
     QRect m_sanjiaoLeftRect;

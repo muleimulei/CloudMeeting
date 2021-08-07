@@ -14,6 +14,7 @@
 #include <QMap>
 #include "AudioOutput.h"
 #include "chatmessage.h"
+#include <QStringListModel>
 
 
 QT_BEGIN_NAMESPACE
@@ -56,13 +57,15 @@ private:
     void clearPartner(); //退出会议，或者会议结束
     void closeImg(quint32); //根据IP重置图像
 
-    void dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, ChatMessage::User_Type type); //用户发送文本
+    void dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, QString ip ,ChatMessage::User_Type type); //用户发送文本
     void dealMessageTime(QString curMsgTime); //处理时间
 
     //音频
     AudioInput* _ainput;
     QThread* _ainputThread;
     AudioOutput* _aoutput;
+
+    QStringList iplist;
 
 public:
     Widget(QWidget *parent = nullptr);
