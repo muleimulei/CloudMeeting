@@ -123,7 +123,7 @@ public:
 struct Log
 {
     char *ptr;
-    int len;
+    uint len;
 };
 
 

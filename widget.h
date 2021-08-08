@@ -16,7 +16,6 @@
 #include "chatmessage.h"
 #include <QStringListModel>
 
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE

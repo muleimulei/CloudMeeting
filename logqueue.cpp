@@ -3,11 +3,7 @@
 
 LogQueue::LogQueue(QObject *parent) : QThread(parent)
 {
-    errno_t ret = fopen_s(&logfile, "./log.txt", "a");
-    if(ret != 0)
-    {
-        qDebug() << "打开文件失败:" << ret;
-    }
+
 }
 
 void LogQueue::pushLog(Log* log)
@@ -32,6 +28,14 @@ void LogQueue::run()
         if(log == NULL || log->ptr == NULL) continue;
 
         //----------------write to logfile-------------------
+        errno_t r = fopen_s(&logfile, "./log.txt", "a");
+        if(r != 0)
+        {
+            qDebug() << "打开文件失败:" << r;
+            continue;
+        }
+
+
         qint64 hastowrite = log->len;
         qint64 ret = 0, haswrite = 0;
         while ((ret = fwrite( (char*)log->ptr + haswrite, 1 ,hastowrite - haswrite, logfile)) < hastowrite)
@@ -54,6 +58,7 @@ void LogQueue::run()
         if(log) free(log);
 
         fflush(logfile);
+        fclose(logfile);
     }
 }
 

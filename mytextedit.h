@@ -5,6 +5,8 @@
 #include <QPlainTextEdit>
 #include <QCompleter>
 #include <QStringList>
+#include <QPair>
+#include <QVector>
 
 class Completer: public QCompleter
 {
@@ -19,13 +21,22 @@ class MyTextEdit : public QWidget
 private:
     QPlainTextEdit *edit;
     Completer *completer;
+    QVector<QPair<int, int> > ipspan;
 public:
     explicit MyTextEdit(QWidget *parent = nullptr);
     QString toPlainText();
     void setPlainText(QString);
     void setPlaceholderText(QString);
     void setCompleter(QStringList );
+private:
+    QString textUnderCursor();
+    bool eventFilter(QObject *, QEvent *);
 
+private slots:
+    void changeCompletion(QString);
+public slots:
+
+    void complete();
 signals:
 };
 

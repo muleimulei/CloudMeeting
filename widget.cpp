@@ -138,7 +138,7 @@ Widget::Widget(QWidget *parent)
     ui->listWidget->setFont(te_font);
 
 
-    iplist << "192.168.1.1" << "192.168.1.112" << "192.167.34.12";
+    iplist << "@192.168.1.1" << "@192.168.1.112" << "@192.167.34.12";
 
     ui->plainTextEdit->setCompleter(iplist);
 }
@@ -705,20 +705,21 @@ void Widget::speaks(QString ip)
 
 void Widget::on_sendmsg_clicked()
 {
-    QString msg = ui->plainTextEdit->toPlainText();
+    QString msg = ui->plainTextEdit->toPlainText().trimmed();
+
     if(msg.size() == 0)
     {
         qDebug() << "empty";
         return;
     }
+    qDebug()<<msg;
     ui->plainTextEdit->setPlainText("");
     QString time = QString::number(QDateTime::currentDateTimeUtc().toTime_t());
     ChatMessage *message = new ChatMessage(ui->listWidget);
     QListWidgetItem *item = new QListWidgetItem();
     dealMessageTime(time);
     dealMessage(message, item, msg, time, "192.169.1.111" ,ChatMessage::User_Me);
-
-//    emit PushText(TEXT_SEND, msg);
+    emit PushText(TEXT_SEND, msg);
 }
 
 void Widget::dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, QString ip ,ChatMessage::User_Type type)
@@ -727,7 +728,6 @@ void Widget::dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString t
     messageW->setFixedWidth(ui->listWidget->width());
     QSize size = messageW->fontRect(text);
     item->setSizeHint(size);
-//    qDebug() << messageW->width() <<"size: " << size;
     messageW->setText(text, time, size, ip, type);
     ui->listWidget->setItemWidget(item, messageW);
 }

@@ -88,6 +88,7 @@ void SendText::run()
                 {
                     WRITE_LOG("malloc error");
                     qDebug() << __FILE__ << __LINE__ << "malloc fail";
+                    free(send);
                     continue;
                 }
                 else
