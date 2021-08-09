@@ -44,6 +44,7 @@ public slots:
     void errorDetect(QAbstractSocket::SocketError error);
 signals:
     void socketerror(QAbstractSocket::SocketError);
+    void sendTextOver();
 };
 
 #endif // MYTCPSOCKET_H

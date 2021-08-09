@@ -101,8 +101,27 @@ void SendText::run()
 					queue_send.push_msg(send);
                 }
 			}
+            else if(text.type == TEXT_SEND)
+            {
+                send->msg_type = TEXT_SEND;
+                QByteArray data = qCompress(QByteArray::fromStdString(text.str.toStdString())); //压缩
+                send->len = data.size();
+                send->data = (uchar *) malloc(send->len);
+                if(send->data == NULL)
+                {
+                    WRITE_LOG("malloc error");
+                    qDebug() << __FILE__ << __LINE__ << "malloc error";
+                    free(send);
+                    continue;
+                }
+                else
+                {
+                    memset(send->data, 0, send->len);
+                    memcpy_s(send->data, send->len, data.data(), data.size());
+                    queue_send.push_msg(send);
+                }
+            }
         }
-        
     }
 }
 void SendText::stopImmediately()

@@ -72,6 +72,7 @@ void MyTcpSocket::sendData(MESG* send)
 {
 	if (_socktcp->state() == QAbstractSocket::UnconnectedState)
 	{
+        emit sendTextOver();
 		if (send->data) free(send->data);
 		if (send) free(send);
 		return;
@@ -89,7 +90,7 @@ void MyTcpSocket::sendData(MESG* send)
 	qToBigEndian<quint32>(ip, sendbuf + bytestowrite);
 	bytestowrite += 4;
 
-	if (send->msg_type == CREATE_MEETING || send->msg_type == AUDIO_SEND || send->msg_type == CLOSE_CAMERA || send->msg_type == IMG_SEND) //创建会议,发送音频,关闭摄像头，发送图片
+    if (send->msg_type == CREATE_MEETING || send->msg_type == AUDIO_SEND || send->msg_type == CLOSE_CAMERA || send->msg_type == IMG_SEND || send->msg_type == TEXT_SEND) //创建会议,发送音频,关闭摄像头，发送图片
 	{
 		//发送数据大小
 		qToBigEndian<quint32>(send->len, sendbuf + bytestowrite);
@@ -129,6 +130,12 @@ void MyTcpSocket::sendData(MESG* send)
 
 	_socktcp->waitForBytesWritten();
 
+    if(send->msg_type == TEXT_SEND)
+    {
+        emit sendTextOver(); //成功往内核发送文本信息
+    }
+
+
 	if (send->data)
 	{
 		free(send->data);
@@ -162,7 +169,7 @@ void MyTcpSocket::run()
         //构造消息体
         MESG * send = queue_send.pop_msg();
         if(send == NULL) continue;
-		QMetaObject::invokeMethod(this, "sendData", Q_ARG(MESG *, send));
+        QMetaObject::invokeMethod(this, "sendData", Q_ARG(MESG*, send));
     }
 }
 
@@ -326,7 +333,7 @@ void MyTcpSocket::recvFromSocket()
 						}
 					}
 				}
-				else if (msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT || msgtype == AUDIO_RECV || msgtype == CLOSE_CAMERA)
+                else if (msgtype == IMG_RECV || msgtype == PARTNER_JOIN || msgtype == PARTNER_EXIT || msgtype == AUDIO_RECV || msgtype == CLOSE_CAMERA || msgtype == TEXT_RECV)
 				{
 					//read ipv4
 					quint32 ip;
@@ -407,6 +414,7 @@ void MyTcpSocket::recvFromSocket()
 								msg->data = (uchar*)malloc(rdc.size());
 								if (msg->data == nullptr)
 								{
+                                    free(msg);
 									qDebug() << __LINE__ << "malloc msg.data failed";
 								}
 								else
@@ -420,7 +428,40 @@ void MyTcpSocket::recvFromSocket()
 							}
 						}
 					}
-				}
+                    else if(msgtype == TEXT_RECV)
+                    {
+                        //解压缩
+                        QByteArray cc((char *)recvbuf + MSG_HEADER, data_size);
+                        std::string rr = qUncompress(cc).toStdString();
+                        if(rr.size() > 0)
+                        {
+                            MESG* msg = (MESG*)malloc(sizeof(MESG));
+                            if (msg == NULL)
+                            {
+                                qDebug() << __LINE__ << "malloc failed";
+                            }
+                            else
+                            {
+                                memset(msg, 0, sizeof(MESG));
+                                msg->msg_type = TEXT_RECV;
+                                msg->ip = ip;
+                                msg->data = (uchar*)malloc(rr.size());
+                                if (msg->data == nullptr)
+                                {
+                                    free(msg);
+                                    qDebug() << __LINE__ << "malloc msg.data failed";
+                                }
+                                else
+                                {
+                                    memset(msg->data, 0, rr.size());
+                                    memcpy_s(msg->data, rr.size(), rr.data(), rr.size());
+                                    msg->len = rr.size();
+                                    queue_recv.push_msg(msg);
+                                }
+                            }
+                        }
+                    }
+                }
 			}
             else
             {

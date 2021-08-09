@@ -90,6 +90,8 @@ private slots:
 
     void on_sendmsg_clicked();
 
+    void textSend();
+
 signals:
     void pushImg(QImage);
     void PushText(MSG_TYPE, QString = "");

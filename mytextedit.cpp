@@ -74,7 +74,8 @@ void MyTextEdit::changeCompletion(QString text)
     tc.insertText(" ");
     edit->setTextCursor(tc);
 
-    ipspan.push_back(QPair<int, int>(pos, str.size()));
+    ipspan.push_back(QPair<int, int>(pos, str.size()+1));
+
 }
 
 QString MyTextEdit::toPlainText()
@@ -117,8 +118,6 @@ bool MyTextEdit::eventFilter(QObject *obj, QEvent *event)
         if(event->type() == QEvent::KeyPress)
         {
             QKeyEvent *keyevent = static_cast<QKeyEvent *>(event);
-            if(keyevent->key() == Qt::Key_Backspace || keyevent->key() == Qt::Key_Delete)
-            {
                 QTextCursor tc = edit->textCursor();
                 int p = tc.position();
                 int i;
@@ -139,8 +138,13 @@ bool MyTextEdit::eventFilter(QObject *obj, QEvent *event)
                         ipspan.removeAt(i);
                         return true;
                     }
+                    else if(p >= ipspan[i].first && p <= ipspan[i].second)
+                    {
+                        QTextCursor tc = edit->textCursor();
+                        tc.setPosition(ipspan[i].second);
+                        edit->setTextCursor(tc);
+                    }
                 }
-            }
         }
     }
     return QWidget::eventFilter(obj, event);

@@ -18,6 +18,7 @@
 #include <QDateTime>
 #include <QCompleter>
 #include <QStringListModel>
+#include <QSound>
 QRect  Widget::pos = QRect(-1, -1, -1, -1);
 
 extern LogQueue *logqueue;
@@ -26,6 +27,8 @@ Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
 {
+
+
     //开启日志线程
     logqueue = new LogQueue();
     logqueue->start();
@@ -56,7 +59,7 @@ Widget::Widget(QWidget *parent)
     ui->createmeetBtn->setDisabled(true);
     ui->openAudio->setDisabled(true);
     ui->openVedio->setDisabled(true);
-//    ui->sendmsg->setDisabled(true);
+    ui->sendmsg->setDisabled(true);
     mainip = 0; //主屏幕显示的用户IP图像
 
     //-------------------局部线程----------------------------
@@ -73,6 +76,7 @@ Widget::Widget(QWidget *parent)
 
     //数据处理（局部线程）
     _mytcpSocket = new MyTcpSocket(); // 底层线程专管发送
+    connect(_mytcpSocket, SIGNAL(sendTextOver()), this, SLOT(textSend()));
     //connect(_mytcpSocket, SIGNAL(socketerror(QAbstractSocket::SocketError)), this, SLOT(mytcperror(QAbstractSocket::SocketError)));
 
 
@@ -136,8 +140,6 @@ Widget::Widget(QWidget *parent)
     te_font.setPointSize(12);
 
     ui->listWidget->setFont(te_font);
-
-
     iplist << "@192.168.1.1" << "@192.168.1.112" << "@192.167.34.12";
 
     ui->plainTextEdit->setCompleter(iplist);
@@ -503,6 +505,20 @@ void Widget::datasolve(MESG *msg)
         }
         repaint();
     }
+    else if(msg->msg_type == TEXT_RECV)
+    {
+        QString str = QString::fromStdString(std::string((char *)msg->data, msg->len));
+        qDebug() << str;
+        QString time = QString::number(QDateTime::currentDateTimeUtc().toTime_t());
+        ChatMessage *message = new ChatMessage(ui->listWidget);
+        QListWidgetItem *item = new QListWidgetItem();
+        dealMessageTime(time);
+        dealMessage(message, item, str, time, QHostAddress(msg->ip).toString() ,ChatMessage::User_She);
+        if(str.contains('@' + QHostAddress(_mytcpSocket->getlocalip()).toString()))
+        {
+            QSound::play(":/myEffect/2.wav");
+        }
+    }
     else if(msg->msg_type == PARTNER_JOIN)
     {
         Partner* p = addPartner(msg->ip);
@@ -588,6 +604,7 @@ Partner* Widget::addPartner(quint32 ip)
 			connect(this, SIGNAL(volumnChange(int)), _ainput, SLOT(setVolumn(int)), Qt::UniqueConnection);
 			connect(this, SIGNAL(volumnChange(int)), _aoutput, SLOT(setVolumn(int)), Qt::UniqueConnection);
             ui->openAudio->setDisabled(false);
+            ui->sendmsg->setDisabled(false);
             _aoutput->startPlay();
         }
 		return p;
@@ -706,7 +723,6 @@ void Widget::speaks(QString ip)
 void Widget::on_sendmsg_clicked()
 {
     QString msg = ui->plainTextEdit->toPlainText().trimmed();
-
     if(msg.size() == 0)
     {
         qDebug() << "empty";
@@ -720,6 +736,7 @@ void Widget::on_sendmsg_clicked()
     dealMessageTime(time);
     dealMessage(message, item, msg, time, "192.169.1.111" ,ChatMessage::User_Me);
     emit PushText(TEXT_SEND, msg);
+    ui->sendmsg->setDisabled(true);
 }
 
 void Widget::dealMessage(ChatMessage *messageW, QListWidgetItem *item, QString text, QString time, QString ip ,ChatMessage::User_Type type)
@@ -749,11 +766,20 @@ void Widget::dealMessageTime(QString curMsgTime)
     if(isShowTime) {
         ChatMessage* messageTime = new ChatMessage(ui->listWidget);
         QListWidgetItem* itemTime = new QListWidgetItem();
-
+        ui->listWidget->addItem(itemTime);
         QSize size = QSize(ui->listWidget->width() , 40);
         messageTime->resize(size);
         itemTime->setSizeHint(size);
         messageTime->setText(curMsgTime, curMsgTime, size);
         ui->listWidget->setItemWidget(itemTime, messageTime);
     }
+}
+
+void Widget::textSend()
+{
+    qDebug() << "send text over";
+    QListWidgetItem* lastItem = ui->listWidget->item(ui->listWidget->count() - 1);
+    ChatMessage* messageW = (ChatMessage *)ui->listWidget->itemWidget(lastItem);
+    messageW->setTextSuccess();
+    ui->sendmsg->setDisabled(false);
 }
