@@ -140,9 +140,6 @@ Widget::Widget(QWidget *parent)
     te_font.setPointSize(12);
 
     ui->listWidget->setFont(te_font);
-    iplist << "@192.168.1.1" << "@192.168.1.112" << "@192.167.34.12";
-
-    ui->plainTextEdit->setCompleter(iplist);
 }
 
 
@@ -296,7 +293,6 @@ void Widget::on_exitmeetBtn_clicked()
     QMessageBox::warning(this, "Information", "退出会议" , QMessageBox::Yes, QMessageBox::Yes);
 	WRITE_LOG("exit meeting");
     //-----------------------------------------
-
 }
 
 void Widget::on_openVedio_clicked()
@@ -390,6 +386,7 @@ void Widget::on_connServer_clicked()
         ui->joinmeetBtn->setDisabled(false);
         WRITE_LOG("succeeed connecting to %s:%s", ip.toStdString().c_str(), port.toStdString().c_str());
         QMessageBox::warning(this, "Connection success", "成功连接服务器" , QMessageBox::Yes, QMessageBox::Yes);
+        ui->sendmsg->setDisabled(false);
         ui->connServer->setDisabled(true);
     }
     else
@@ -522,8 +519,13 @@ void Widget::datasolve(MESG *msg)
     else if(msg->msg_type == PARTNER_JOIN)
     {
         Partner* p = addPartner(msg->ip);
-        if(p) p->setpic(QImage(":/myImage/1.jpg"));
-        ui->outlog->setText(QString("%1 join meeting").arg(QHostAddress(msg->ip).toString()));
+        if(p)
+        {
+            p->setpic(QImage(":/myImage/1.jpg"));
+            ui->outlog->setText(QString("%1 join meeting").arg(QHostAddress(msg->ip).toString()));
+            iplist << QString("@") + QHostAddress(msg->ip).toString();
+            ui->plainTextEdit->setCompleter(iplist);
+        }
     }
     else if(msg->msg_type == PARTNER_EXIT)
     {
@@ -531,6 +533,15 @@ void Widget::datasolve(MESG *msg)
         if(mainip == msg->ip)
         {
             ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
+        }
+        if(iplist.removeOne(QString("@") + QHostAddress(msg->ip).toString()))
+        {
+            ui->plainTextEdit->setCompleter(iplist);
+        }
+        else
+        {
+            qDebug() << QHostAddress(msg->ip).toString() << "not exist";
+            WRITE_LOG("%s not exist",QHostAddress(msg->ip).toString().toStdString().c_str());
         }
         ui->outlog->setText(QString("%1 exit meeting").arg(QHostAddress(msg->ip).toString()));
     }
@@ -547,8 +558,13 @@ void Widget::datasolve(MESG *msg)
             memcpy_s(&ip, sizeof(uint32_t), msg->data + pos , sizeof(uint32_t));
             pos += sizeof(uint32_t);
 			Partner* p = addPartner(ip);
-			if (p) p->setpic(QImage(":/myImage/1.jpg"));
+            if (p)
+            {
+                p->setpic(QImage(":/myImage/1.jpg"));
+                iplist << QString("@") + QHostAddress(msg->ip).toString();
+            }
         }
+        ui->plainTextEdit->setCompleter(iplist);
         ui->openVedio->setDisabled(false);
     }
     else if(msg->msg_type == RemoteHostClosedError)
@@ -734,7 +750,7 @@ void Widget::on_sendmsg_clicked()
     ChatMessage *message = new ChatMessage(ui->listWidget);
     QListWidgetItem *item = new QListWidgetItem();
     dealMessageTime(time);
-    dealMessage(message, item, msg, time, "192.169.1.111" ,ChatMessage::User_Me);
+    dealMessage(message, item, msg, time, QHostAddress(_mytcpSocket->getlocalip()).toString() ,ChatMessage::User_Me);
     emit PushText(TEXT_SEND, msg);
     ui->sendmsg->setDisabled(true);
 }

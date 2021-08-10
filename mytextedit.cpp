@@ -31,7 +31,7 @@ QString MyTextEdit::textUnderCursor()
 
 void MyTextEdit::complete()
 {
-    if(edit->toPlainText().size() == 0) return;
+    if(edit->toPlainText().size() == 0 || completer == nullptr) return;
     QChar tail =  edit->toPlainText().at(edit->toPlainText().size()-1);
     if(tail == '@')
     {
