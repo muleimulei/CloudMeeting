@@ -179,7 +179,7 @@ Widget::~Widget()
     //终止底层发送与接收线程
 
     if(_mytcpSocket->isRunning())
-    { 
+    {
         _mytcpSocket->stopImmediately();
         _mytcpSocket->wait();
     }
@@ -289,9 +289,16 @@ void Widget::on_exitmeetBtn_clicked()
     ui->connServer->setDisabled(false);
     ui->groupBox_2->setTitle(QString("主屏幕"));
 //    ui->groupBox->setTitle(QString("副屏幕"));
+    //清除聊天记录
+    while(ui->listWidget->count() > 0)
+    {
+        QListWidgetItem *item = ui->listWidget->takeItem(0);
+        delete item;
+    }
+    WRITE_LOG("exit meeting");
 
     QMessageBox::warning(this, "Information", "退出会议" , QMessageBox::Yes, QMessageBox::Yes);
-	WRITE_LOG("exit meeting");
+
     //-----------------------------------------
 }
 
@@ -348,7 +355,7 @@ void Widget::closeImg(quint32 ip)
     Partner * p = partner[ip];
     p->setpic(QImage(":/myImage/1.jpg"));
 
-    if(mainip == _mytcpSocket->getlocalip())
+    if(mainip == ip)
     {
         ui->mainshow_label->setPixmap(QPixmap::fromImage(QImage(":/myImage/1.jpg").scaled(ui->mainshow_label->size())));
     }
@@ -523,7 +530,7 @@ void Widget::datasolve(MESG *msg)
         {
             p->setpic(QImage(":/myImage/1.jpg"));
             ui->outlog->setText(QString("%1 join meeting").arg(QHostAddress(msg->ip).toString()));
-            iplist << QString("@") + QHostAddress(msg->ip).toString();
+            iplist.append(QString("@") + QHostAddress(msg->ip).toString());
             ui->plainTextEdit->setCompleter(iplist);
         }
     }
@@ -561,7 +568,7 @@ void Widget::datasolve(MESG *msg)
             if (p)
             {
                 p->setpic(QImage(":/myImage/1.jpg"));
-                iplist << QString("@") + QHostAddress(msg->ip).toString();
+                iplist << QString("@") + QHostAddress(ip).toString();
             }
         }
         ui->plainTextEdit->setCompleter(iplist);
@@ -569,7 +576,7 @@ void Widget::datasolve(MESG *msg)
     }
     else if(msg->msg_type == RemoteHostClosedError)
     {
-        if(_createmeet || _joinmeet) QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
+
         clearPartner();
         _mytcpSocket->disconnectFromHost();
         _mytcpSocket->wait();
@@ -578,6 +585,13 @@ void Widget::datasolve(MESG *msg)
         ui->exitmeetBtn->setDisabled(true);
         ui->connServer->setDisabled(false);
         ui->joinmeetBtn->setDisabled(true);
+        //清除聊天记录
+        while(ui->listWidget->count() > 0)
+        {
+            QListWidgetItem *item = ui->listWidget->takeItem(0);
+            delete item;
+        }
+        if(_createmeet || _joinmeet) QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
     }
     else if(msg->msg_type == OtherNetError)
     {
