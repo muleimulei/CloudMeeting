@@ -140,6 +140,9 @@ Widget::Widget(QWidget *parent)
     te_font.setPointSize(12);
 
     ui->listWidget->setFont(te_font);
+
+    ui->tabWidget->setCurrentIndex(1);
+    ui->tabWidget->setCurrentIndex(0);
 }
 
 
@@ -154,7 +157,7 @@ void Widget::cameraImageCapture(QVideoFrame frame)
         QTransform matrix;
         matrix.rotate(180.0);
 
-        QImage img =  videoImg.transformed(matrix, Qt::FastTransformation);
+        QImage img =  videoImg.transformed(matrix, Qt::FastTransformation).scaled(ui->mainshow_label->size());
 
         if(partner.size() > 1)
         {
@@ -293,8 +296,14 @@ void Widget::on_exitmeetBtn_clicked()
     while(ui->listWidget->count() > 0)
     {
         QListWidgetItem *item = ui->listWidget->takeItem(0);
+        ChatMessage *chat = (ChatMessage *) ui->listWidget->itemWidget(item);
         delete item;
+        delete chat;
     }
+    iplist.clear();
+    ui->plainTextEdit->setCompleter(iplist);
+
+
     WRITE_LOG("exit meeting");
 
     QMessageBox::warning(this, "Information", "退出会议" , QMessageBox::Yes, QMessageBox::Yes);
@@ -512,7 +521,7 @@ void Widget::datasolve(MESG *msg)
     else if(msg->msg_type == TEXT_RECV)
     {
         QString str = QString::fromStdString(std::string((char *)msg->data, msg->len));
-        qDebug() << str;
+        //qDebug() << str;
         QString time = QString::number(QDateTime::currentDateTimeUtc().toTime_t());
         ChatMessage *message = new ChatMessage(ui->listWidget);
         QListWidgetItem *item = new QListWidgetItem();
@@ -589,8 +598,12 @@ void Widget::datasolve(MESG *msg)
         while(ui->listWidget->count() > 0)
         {
             QListWidgetItem *item = ui->listWidget->takeItem(0);
+            ChatMessage *chat = (ChatMessage *)ui->listWidget->itemWidget(item);
             delete item;
+            delete chat;
         }
+        iplist.clear();
+        ui->plainTextEdit->setCompleter(iplist);
         if(_createmeet || _joinmeet) QMessageBox::warning(this, "Meeting Information", "会议结束" , QMessageBox::Yes, QMessageBox::Yes);
     }
     else if(msg->msg_type == OtherNetError)
